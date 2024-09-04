@@ -1,10 +1,10 @@
 #! bin/bash
 
 #Path to raw data folder
-data_path=../00_raw_data/30-1072689103/00_fastq/
+data_path=../00_raw_data/30-1072689103/00_fastq
 
 #Path to raw data folder containing the fastq.gz and fastq.gz.md5 files I downloaded from Genewiz.
-fastq_list=../00_raw_data/30-1072689103/00_fastq/*.fastq.gz
+fastq_list=$data_path/*.fastq.gz
 
 #Declare array variable containing all 24 library labels.
 declare -a condition_list=( "JL318-Rep1-A" "JL318-Rep1-B" "JL318-Rep1-C" "JL318-Rep1-D" "JL318-Rep1-E" "JL318-Rep1-F" "JL318-Rep1-G" "JL318-Rep1-H" "JL318-Rep2-A" "JL318-Rep2-B" "JL318-Rep2-C" "JL318-Rep2-D" "JL318-Rep2-E" "JL318-Rep2-F" "JL318-Rep2-G" "JL318-Rep2-H" "JL318-Rep3-A" "JL318-Rep3-B" "JL318-Rep3-C" "JL318-Rep3-D" "JL318-Rep3-E" "JL318-Rep3-F" "JL318-Rep3-G" "JL318-Rep3-H" )

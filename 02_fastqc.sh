@@ -1,13 +1,12 @@
 #! bin/bash
 
 #Path to raw data folder
-data_path=/home/jli333/JL318/00_raw_data/30-1072689103/00_fastq/
+data_path="../00_raw_data/30-1072689103/00_fastq"
 
 #Path to raw data folder containing the fastq.gz and fastq.gz.md5 files I downloaded from Genewiz.
-fastq_list=/home/jli333/JL318/00_raw_data/30-1072689103/00_fastq/*.fastq.gz
-#File counter to make sure all files are checked.
+fastq_list=$data_path/*.fastq.gz
 
-output_path=/home/jli333/JL318/02_fastqc/
+output_path="../02_fastqc/"
 
 if [ ! -d "$output_path" ]; then
     echo $output_path does not exist! Creating one now.
