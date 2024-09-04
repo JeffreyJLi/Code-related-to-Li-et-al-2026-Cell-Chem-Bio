@@ -42,7 +42,7 @@ for condition in "${condition_list[@]}"; do
     read2_file=$trimmed_path$condition"_R2_001.trimmed.fastq.gz"
 
     #Generates the full input argument
-    star_input_arg=$read1_file","$read2_file
+    star_input_arg=$read1_file" "$read2_file
 
     #Generates output file filename
     output_filename=$output_path$condition"_STAR"
