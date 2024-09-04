@@ -1,5 +1,7 @@
 #! bin/bash
 
+# This script uses another python script (tabulate_uniquely_mapped_reads_05b.py) to parse STARLog.final.out files and pull out the uniquely-mapped reads field, writing it into a separate .tsv file.
+
 # Path to STAR alignments folder
 star_path=../05_STAR_alignments/
 
