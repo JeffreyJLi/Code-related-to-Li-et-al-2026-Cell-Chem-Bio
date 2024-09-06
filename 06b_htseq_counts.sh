@@ -1,5 +1,8 @@
 #! bin/bash
 
+# This script uses HTSeq-count to count the number of reads per gene.
+# NOTE: I ended up NOT using this. I used featureCounts instead since featureCounts is multi-threaded and thus WAY faster than HTSeq-count.
+
 #Path to raw data folder
 star_path=../05_STAR_alignments/
 
@@ -33,6 +36,11 @@ for condition in "${condition_list[@]}"; do
     output_filename=$output_path$condition"_htseq_counts.txt"
 
     if [ -f $bam_file ]; then
+        # Arguments:
+        # -r: are the reads sorted by name or coordinate?
+        # -f: file type (.bam or .sam)
+        # -s: is the data stranded?
+        # -i: what .gtf category to count by?
         htseq-count -r pos -f bam -s yes -i gene_id $bam_file $gtf_path > $output_filename
     else
         echo "ERROR: "$condition".bam file not found!"

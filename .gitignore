@@ -35,3 +35,9 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+.Rproj.user
+
+*.Rds
+*.rds
+*.R
+*.r

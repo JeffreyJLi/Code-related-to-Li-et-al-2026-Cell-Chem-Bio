@@ -1,5 +1,7 @@
 #! bin/bash
 
+# This script uses featureCounts to count the number of reads per gene.
+
 #Path to raw data folder
 star_path=../05_STAR_alignments/
 
