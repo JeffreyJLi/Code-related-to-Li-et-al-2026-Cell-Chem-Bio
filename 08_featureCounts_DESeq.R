@@ -167,7 +167,8 @@ wrapper_plotCounts_genename <- function(deseq2_dataframe, gene_name) {
   # Example of usage (for JUN)
   # wrapper_plotCounts(dds, "JUN")
   
-  stopifnot(any(bm.complete==gene_name))
+  # Checks that gene_name argument exists in bm.complete, and is UNIQUE. If it is NOT, you must use the ensembl_gene_id_version in wrapper_plotCounts() instead!
+  stopifnot(nrow(filter(bm.complete, external_gene_name == gene_name)) == 1)
   
   ensembl_geneid <- filter(bm.complete, external_gene_name == gene_name) %>%
     select(ensembl_gene_id_version) %>% unlist()
@@ -213,6 +214,7 @@ plot_crossCorrelation <- function(treatmentA_df, treatmentB_df, labelA, labelB) 
     geom_point(alpha=0.2, pch=16, color="grey50") +
     geom_hline(yintercept=0, linetype="dashed", color = "black") +
     geom_vline(xintercept=0, linetype="dashed", color = "black") +
+    geom_abline(intercept=0, slope=1) +
     theme_bw()
   
 
@@ -222,6 +224,10 @@ plot_crossCorrelation <- function(treatmentA_df, treatmentB_df, labelA, labelB) 
 # END OF FUNCTIONS
 # ------------------------------------------------------------------------------------------
 
+
+# ------------------------------------------------------------------------------------------
+# GENERATING VOLCANO PLOTS
+# ---------------------------------------
 # Vector of our drug treatment conditions
 noZAKi_condition_list = c("ANS","EME","DDB")
 ZAKi_condition_list = c("ANS_ZAKi","EME_ZAKi","DDB_ZAKi")
@@ -230,7 +236,7 @@ ZAKi_condition_list = c("ANS_ZAKi","EME_ZAKi","DDB_ZAKi")
 plots_data=list()
 plots = list()
 
-# For loop that builds up the plots and plots_data variables to allow access of plots using plots$[drug] (ex. plots$ANS)
+# For loop that builds up the volcano plots and plots_data variables to allow access of volcano plots using plots$[drug] (ex. plots$ANS)
 for (condition in noZAKi_condition_list) {
   condition_data <- wrapper_deseq2_results_to_ggplot2_dataframe(dds, condition, "untreated")
   condition_plot <- plot_DESeq2_volcano(condition_data, condition)
@@ -253,24 +259,60 @@ for (condition in ZAKi_condition_list) {
 summary(plots)
 summary(plots_data)
 
+# Can call individual plots
+plots$ANS
+
+# ------------------------------------------------------------------------------------------
 
 
-wrapper_plotCounts(dds, "ENSG00000177606.9")
-testwrapper_plotCounts_genename(dds, "JUN")
+# ------------------------------------------------------------------------------------------
+# PLOTTING CROSS-CORRELATION PLOTS
+# ---------------------------------------
 
--wrapper_plotCounts(dds, "ENSG00000120129.6")
+# Cross-correlation of ANS with DDB
+plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS",".DDB")
+plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$DDB_ZAKi,".ANS_ZAKi",".DDB_ZAKi")
+
+# Cross-correlation of ANS with EME
+plot_crossCorrelation(plots_data$ANS, plots_data$EME,".ANS",".EME")
+plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME_ZAKi, ".ANS_ZAKi", ".EME_ZAKi")
+
+# Cross-correlation of ZAKi-treated conditions with EME
+plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME")
+plot_crossCorrelation(plots_data$EME_ZAKi, plots_data$EME,".EME_ZAKi",".EME")
+plot_crossCorrelation(plots_data$DDB_ZAKi, plots_data$EME,".DDB_ZAKi",".EME")
+
+
+
+# ------------------------------------------------------------------------------------------
+
+
+
+# ------------------------------------------------------------------------------------------
+# PLOTTING COUNTS FOR INDIVIDUAL GENES:
+# ---------------------------------------
+
+
+# Below functions are equivalent.
+# ------------------------------------------------------------
+
+# Generating plots by gene name
+wrapper_plotCounts_genename(dds, "JUN")
+wrapper_plotCounts_genename(dds, "DUSP1")
+wrapper_plotCounts_genename(dds, "CCN1")
+wrapper_plotCounts_genename(dds, "ARRDC3")
+wrapper_plotCounts_genename(dds, "TIPARP")
+wrapper_plotCounts_genename(dds, "BAMBI")
+
+# Generating plots by ensembl_gene_id_version
+wrapper_plotCounts(dds, "ENSG00000120129.6")
 wrapper_plotCounts(dds, "ENSG00000142871.18")
 wrapper_plotCounts(dds,"ENSG00000160888.7")
 wrapper_plotCounts(dds, "ENSG00000113369.9")
 wrapper_plotCounts(dds, "ENSG00000163659.13")
 wrapper_plotCounts(dds,"ENSG00000095739.11")
-
-plot_crossCorrelation(plots_data$ANS, plots_data$EME,".ANS",".EME")
-plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME")
-plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS",".DDB")
-
-EME_UT <- wrapper_deseq2_results_to_ggplot2_dataframe(dds, "EME","untreated")
-plot_crossCorrelation(ANS_UT, EME_UT, ".ANS",".EME")
+# ------------------------------------------------------------
+# ------------------------------------------------------------------------------------------
 
 
 
@@ -280,74 +322,3 @@ plot_crossCorrelation(ANS_UT, EME_UT, ".ANS",".EME")
 
 
 
-
-
-# Nicolle code
-ANS_UT <- DESeq2::results(dds, contrast = c("drug_treatment","ANS","untreated"))
-
-res1 <- as.data.frame(ANS_UT)
-
-
-res1 <- generate_ggplot2_dataframe(res1)
-plot_DESeq2_volcano(res1)
-
-# Nicolle code
-res1 <- res1%>% mutate(up = log2FoldChange > 1, 
-                       down= log2FoldChange < -1)
-ensembl_gene_id_version <- rownames(res1)
-rownames(res1) <- NULL
-res1 <- cbind(ensembl_gene_id_version,res1)
-res1 <- dplyr::filter(res1, baseMean > 0)
-bm.complete <-dplyr::filter(bm, ! external_gene_name == '')
-bm.complete
-res1 <- left_join(res1, bm.complete, by="ensembl_gene_id_version")
-up1 <- res1[res1$up == TRUE,]
-down1 <- res1[res1$down == TRUE,]
-##Volcplot
-ggplot(res1, aes(x=log2FoldChange,
-                 y=-log10(padj))) +
-  xlim(0,10) +
-  ylim(0,1000) +
-  geom_point(alpha=0.2, pch=16, color="grey50") +
-  geom_point(data=up1, color="#377EB8", alpha=0.2) +
-  geom_hline(yintercept=0, linetype="dashed", color = "black") +
-  geom_vline(xintercept=0, linetype="dashed", color = "black") +
-  geom_text_repel(data=up1, aes(label=external_gene_name), point.padding=0.25) +
-  theme_bw()
-
-
-## Below code is for making cross-correlation plots
-ANS_UT <- results(dds, contrast = c("drug_treatment","DDB_ZAKi","untreated"))
-ensembl_gene_id_version <- rownames(ANS_UT)
-rownames(ANS_UT) <- NULL
-ANS_UT <- cbind(ensembl_gene_id_version,ANS_UT)
-ANS_UT <- as.data.frame(ANS_UT)
-
-EME_UT <- results(dds, contrast = c("drug_treatment","ANS_ZAKi","untreated"))
-ensembl_gene_id_version <- rownames(EME_UT)
-rownames(EME_UT) <- NULL
-EME_UT <- cbind(ensembl_gene_id_version,EME_UT)
-EME_UT <- as.data.frame(EME_UT)
-
-
-
-res1 <- inner_join(ANS_UT,EME_UT,by="ensembl_gene_id_version", suffix=c(".ANS",".EME"))
-
-##Volcplot
-ggplot(res1, aes(x=log2FoldChange.ANS,
-                 y=log2FoldChange.EME)) +
-  ylim(-5,5) +
-  xlim(-5,5) +
-  geom_point(alpha=0.2, pch=16, color="grey50") +
-  geom_hline(yintercept=0, linetype="dashed", color = "black") +
-  geom_vline(xintercept=0, linetype="dashed", color = "black") +
-  theme_bw()
-
-
-
-NEW
-
-# Extract results of experimental vs. reference comparison
-reso <- results(dds, contrast = c("conditions", "LD", "UT"))
-#Make volcano plot for DESeq2 data.
-res1 <- as.data.frame(reso)
