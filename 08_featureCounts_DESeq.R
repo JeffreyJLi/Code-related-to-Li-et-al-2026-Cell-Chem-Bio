@@ -103,14 +103,52 @@ res <- results(dds)
 
 # Generate PCA plot of the DESeq results
 vsd <- vst(dds,blind=FALSE)
-plotPCA(vsd,intgroup=c("drug_treatment")) + 
-  theme(legend.title = element_text(size = 12, face="bold"),
-  legend.text = element_text(size = 12),
-  axis.text = element_text(size = 12),
-  axis.title = element_text(size = 14, face="bold"),
-  plot.title = element_text(size = 16, face = "bold")) + ggtitle("RNA-seq PCA")
-  
 
+# Return DESeq2 PCAplot data as a separate dataframe for custom ggplot
+PCAplot_data <- plotPCA(vsd,intgroup=c("drug_treatment"), returnData=TRUE)
+
+PCAplot <- ggplot(PCAplot_data, aes(x = PC1, y = PC2, color = group, shape = group)) +
+  geom_point(size = 4, stroke = 2) +
+  theme_bw(base_family = "Avenir") +
+  theme(legend.title = element_text(size = 20, face="bold"),
+        legend.text = element_text(size = 18),
+        axis.text = element_text(size = 18),
+        axis.title = element_text(size = 20, face="bold"),
+        plot.title = element_text(size = 20, face = "bold"),
+        panel.grid = element_line(color = "dark grey"),
+        legend.key.spacing.y = unit(0.5, "lines")) + 
+  coord_fixed() + 
+  ggtitle("RNA-seq PCA") +
+  scale_color_manual(name = "group", 
+                     labels = c("Untreated","Untreated+ZAKi", "ANS","ANS+ZAKi", "EME","EME+ZAKi", "DDB", "DDB+ZAKi"),
+                     values = c("#afafaf", "#afafaf", "#b100ff", "#b100ff", "#084152","#084152", "#62d5b4", "#62d5b4")) +
+  scale_shape_manual(name = "group", 
+                     labels = c("Untreated","Untreated+ZAKi", "ANS","ANS+ZAKi", "EME","EME+ZAKi", "DDB", "DDB+ZAKi"),
+                     values = c(19,1,19,1,19,1,19,1)) +
+  # Used % variances calculated by plotPCA(vsd, intgroup = c("drug_treatment"))
+  labs(x = "PC1: 67% variance",
+       y = "PC2: 17% variance")
+
+# View PCA Plot
+PCAplot
+
+# Save PCA plot
+# ggsave(filename = "script_outputs/JL318_PCAplot.svg", plot = PCAplot, dpi = 400, height = 9, width = 12)
+
+# Once saved, I had to manually set the DPI and document size in Affinity. I also had to convert all the transparent rectangles and circles from black back to transparent, since Affinity SVG reader doesn't handle ggsave()'s very well.
+
+# # Old code below for customizing DESeq2 plotPCA output
+# # Superceded by code above due to limitations to customization
+# plotPCA(vsd,intgroup=c("drug_treatment")) +
+#   theme_bw(base_family = "Avenir") +
+#   theme(legend.title = element_text(size = 12, face="bold"),
+#   legend.text = element_text(size = 12),
+#   axis.text = element_text(size = 12),
+#   axis.title = element_text(size = 14, face="bold"),
+#   plot.title = element_text(size = 16, face = "bold"),
+#   panel.grid = element_line(color = "light grey")) +
+#   ggtitle("RNA-seq PCA") +
+#   scale_color_manual(values = c("#bfbfbf", "#6a6a6a", "#ff0000", "#962500", "#65f300","#5e8e3c", "#00b2ff", "#0015ff"))
   
 
 # ------------------------------------------------------------------------------------------
@@ -459,12 +497,12 @@ plot_data_ANS_rsrAnno <- left_join(plots_data$ANS, RSR_genes,by=c("ensembl_gene_
 View(plot_data_ANS_rsrAnno)
 
 
-up_rows <- plots_data$ANS[plots_data$ANS$up == TRUE,]
-down_rows <- plots_data$ANS[plots_data$ANS$down == TRUE,]
-plots_data$ANS$ZAK_dep <- plots_data$ANS$ensembl_gene_id_version %in% top_ZAKdep_ANS$ensembl_gene_id_version
-ZAK_rows <- plots_data$ANS[plots_data$ANS$ZAK_dep == TRUE,]
+up_rows <- plots_data$ANS_ZAKi[plots_data$ANS_ZAKi$up == TRUE,]
+down_rows <- plots_data$ANS_ZAKi[plots_data$ANS_ZAKi$down == TRUE,]
+plots_data$ANS_ZAKi$ZAK_dep <- plots_data$ANS_ZAKi$ensembl_gene_id_version %in% top_ZAKdep_ANS$ensembl_gene_id_version
+ZAK_rows <- plots_data$ANS_ZAKi[plots_data$ANS_ZAKi$ZAK_dep == TRUE,]
 
-ggplot(plots_data$ANS, aes(x=log2FoldChange,
+ggplot(plots_data$ANS_ZAKi, aes(x=log2FoldChange,
                               y=-log10(padj_padded))) +
   geom_point(alpha=0.2, pch=16, color="grey50") +
   geom_point(data=up_rows, color="#377EB8", alpha=0.2) +
