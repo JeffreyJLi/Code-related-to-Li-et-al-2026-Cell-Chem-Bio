@@ -95,20 +95,13 @@ plotDispEsts(dds)
 
 res <- results(dds)
 
-
-# Old code.
-# Removes rows with less than 100 reads
-# NOTE: DO NOT USE THIS - SEE ABOVE. THIS IS STUPID.
-# idx <- rowSums(counts(dds, normalized=TRUE) >= 100 ) >= 24
-# dds <- dds[idx,]
-# res <- results(dds)
-
 # Generate PCA plot of the DESeq results
 vsd <- vst(dds,blind=FALSE)
 
 # Return DESeq2 PCAplot data as a separate dataframe for custom ggplot
 PCAplot_data <- plotPCA(vsd,intgroup=c("drug_treatment"), returnData=TRUE)
 
+# Plot PCA DESeq2 data using ggplot2.
 PCAplot <- ggplot(PCAplot_data, aes(x = PC1, y = PC2, color = group, shape = group)) +
   geom_point(size = 4, stroke = 2) +
   theme_bw(base_family = "Avenir") +
@@ -138,19 +131,6 @@ PCAplot
 # ggsave(filename = "script_outputs/JL318_PCAplot.svg", plot = PCAplot, dpi = 400, height = 9, width = 12)
 
 # Once saved, I had to manually set the DPI and document size in Affinity. I also had to convert all the transparent rectangles and circles from black back to transparent, since Affinity SVG reader doesn't handle ggsave()'s very well.
-
-# # Old code below for customizing DESeq2 plotPCA output
-# # Superceded by code above due to limitations to customization
-# plotPCA(vsd,intgroup=c("drug_treatment")) +
-#   theme_bw(base_family = "Avenir") +
-#   theme(legend.title = element_text(size = 12, face="bold"),
-#   legend.text = element_text(size = 12),
-#   axis.text = element_text(size = 12),
-#   axis.title = element_text(size = 14, face="bold"),
-#   plot.title = element_text(size = 16, face = "bold"),
-#   panel.grid = element_line(color = "light grey")) +
-#   ggtitle("RNA-seq PCA") +
-#   scale_color_manual(values = c("#bfbfbf", "#6a6a6a", "#ff0000", "#962500", "#65f300","#5e8e3c", "#00b2ff", "#0015ff"))
   
 # ------------------------------------------------------------------------------------------
 # GENERATING VOLCANO PLOTS
@@ -194,36 +174,19 @@ plots$ANS_ZAKi
 plots$EME_ZAKi
 plots$DDB_ZAKi
 
-
-
-
-
+# Generate one big dataframe containing all differentially-expressed genes for all conditions
+full_DEseq_dataset <- bind_rows(plots_data)
+full_DEseq_dataset
 # ------------------------------------------------------------------------------------------
 # GENERATING SUMMARY VIOLIN PLOT
 # ---------------------------------------
 
-
-# Can call the data used for plot
-violin_plot_data_list <- list()
-for (condition in noZAKi_condition_list) {
-  violin_plot_data_list[[condition]] <- plots_data[[condition]] %>% select(c(ensembl_gene_id_version,external_gene_name, log2FoldChange)) %>% mutate(treatment=condition)
-}
-for (condition in ZAKi_condition_list) {
-  violin_plot_data_list[[condition]] <- plots_data[[condition]] %>% select(c(ensembl_gene_id_version,external_gene_name, log2FoldChange)) %>% mutate(treatment=condition)
-}
-
-violin_plot_data <- full_join(violin_plot_data_list$ANS, violin_plot_data_list$EME, by = c("ensembl_gene_id_version","external_gene_name","treatment", "log2FoldChange")) %>% 
-  full_join(violin_plot_data_list$DDB, by = c("ensembl_gene_id_version","external_gene_name","treatment", "log2FoldChange")) %>% 
-  full_join(violin_plot_data_list$ANS_ZAKi, by = c("ensembl_gene_id_version","external_gene_name","treatment", "log2FoldChange")) %>% 
-  full_join(violin_plot_data_list$EME_ZAKi, by = c("ensembl_gene_id_version","external_gene_name","treatment", "log2FoldChange")) %>% 
-  full_join(violin_plot_data_list$DDB_ZAKi, by = c("ensembl_gene_id_version","external_gene_name","treatment", "log2FoldChange"))
-
-mutate(violin_plot_data, up = log2FoldChange > 1, down = log2FoldChange < -1)
+violin_plot_data <- full_DEseq_dataset %>% select(ensembl_gene_id_version,external_gene_name, treatment_condition, log2FoldChange) %>% mutate(up = log2FoldChange > 1, down = log2FoldChange < -1)
 
 up_rows <- filter(violin_plot_data, log2FoldChange > 1)
 down_rows <- filter(violin_plot_data, log2FoldChange < -1 )
 
-ggplot(violin_plot_data, aes(x = treatment, y = log2FoldChange)) +
+ggplot(violin_plot_data, aes(x = treatment_condition, y = log2FoldChange)) +
   geom_violin() +
   geom_point(alpha = 0.3, colour = "grey", size = 0.7) +
   geom_point(data = up_rows, alpha = 0.3, colour = "#377EB8", size = 0.7) +
@@ -253,10 +216,12 @@ plot_crossCorrelation(plots_data$ANS, plots_data$EME,".ANS",".EME")
 plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME_ZAKi, ".ANS_ZAKi", ".EME_ZAKi")
 
 # Cross-correlation of ZAKi-treated conditions with EME
-plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME")
+plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME")
 plot_crossCorrelation(plots_data$EME_ZAKi, plots_data$EME,".EME_ZAKi",".EME")
 plot_crossCorrelation(plots_data$DDB_ZAKi, plots_data$EME,".DDB_ZAKi",".EME")
 
+ggsave(filename = "script_outputs/ANS_ZAKi_vs_EME_crossCorrelation.png", plot = plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME"), 
+       dpi = 400, height = 9, width = 12)
 
 
 # ------------------------------------------------------------------------------------------
@@ -354,12 +319,12 @@ plot_data_ANS_rsrAnno <- left_join(plots_data$ANS, RSR_genes,by=c("ensembl_gene_
 View(plot_data_ANS_rsrAnno)
 
 
-up_rows <- plots_data$ANS_ZAKi[plots_data$ANS_ZAKi$up == TRUE,]
-down_rows <- plots_data$ANS_ZAKi[plots_data$ANS_ZAKi$down == TRUE,]
-plots_data$ANS_ZAKi$ZAK_dep <- plots_data$ANS_ZAKi$ensembl_gene_id_version %in% top_ZAKdep_ANS$ensembl_gene_id_version
-ZAK_rows <- plots_data$ANS_ZAKi[plots_data$ANS_ZAKi$ZAK_dep == TRUE,]
+up_rows <- plots_data$ANS[plots_data$ANS$up == TRUE,]
+down_rows <- plots_data$ANS[plots_data$ANS$down == TRUE,]
+plots_data$ANS$ZAK_dep <- plots_data$ANS$ensembl_gene_id_version %in% top_ZAKdep_ANS$ensembl_gene_id_version
+ZAK_rows <- plots_data$ANS[plots_data$ANS$ZAK_dep == TRUE,]
 
-ggplot(plots_data$ANS_ZAKi, aes(x=log2FoldChange,
+ggplot(plots_data$ANS, aes(x=log2FoldChange,
                               y=-log10(padj_padded))) +
   geom_point(alpha=0.2, pch=16, color="grey50") +
   geom_point(data=up_rows, color="#377EB8", alpha=0.2) +
