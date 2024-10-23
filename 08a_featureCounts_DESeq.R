@@ -181,7 +181,9 @@ full_DEseq_dataset
 # GENERATING SUMMARY VIOLIN PLOT
 # ---------------------------------------
 
-violin_plot_data <- full_DEseq_dataset %>% select(ensembl_gene_id_version,external_gene_name, treatment_condition, log2FoldChange) %>% mutate(up = log2FoldChange > 1, down = log2FoldChange < -1)
+violin_plot_data <- full_DEseq_dataset %>% 
+  select(ensembl_gene_id_version,external_gene_name, treatment_condition, log2FoldChange) %>% 
+  mutate(up = log2FoldChange > 1, down = log2FoldChange < -1)
 
 up_rows <- filter(violin_plot_data, log2FoldChange > 1)
 down_rows <- filter(violin_plot_data, log2FoldChange < -1 )
@@ -208,23 +210,62 @@ ggplot(violin_plot_data, aes(x = treatment_condition, y = log2FoldChange)) +
 # ---------------------------------------
 
 # Cross-correlation of ANS with DDB
-plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS",".DDB")
+plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS/UT",".DDB/UT", "ANS vs DDB")
+save_final_plot(plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS/UT",".DDB/UT", "ANS vs DDB"), "./script_outputs/riboclub/JL318 ANS vs DDB cross correlation.svg")
+
+
 plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$DDB_ZAKi,".ANS_ZAKi",".DDB_ZAKi")
 
 # Cross-correlation of ANS with EME
-plot_crossCorrelation(plots_data$ANS, plots_data$EME,".ANS",".EME")
+ANS_EME_crossCorrelation <- plot_crossCorrelation(plots_data$ANS, plots_data$EME,".ANS",".EME", "ANS vs EME")
+ANS_EME_crossCorrelation
+save_final_plot(ANS_EME_crossCorrelation, "./script_outputs/riboclub/JL318 ANS vs EME cross correlation.svg")
 plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME_ZAKi, ".ANS_ZAKi", ".EME_ZAKi")
 
 # Cross-correlation of ZAKi-treated conditions with EME
-plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME")
+ANSZAKi_EME_crossCorrelation <- plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME")
+ANSZAKi_EME_crossCorrelation
+save_final_plot(ANSZAKi_EME_crossCorrelation, "./script_outputs/riboclub/JL318 ANS_ZAKi vs EME cross correlation.svg")
+
+plot_crossCorrelation(plots_data$ANS, plots_data$ANS_ZAKi,".ANS",".ANS_ZAKi", "ANS vs ANS_ZAKi")
+
+
+ANSZAKi_ANS_crossCorrelation <- plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$ANS,".ANS_ZAKi",".ANS", "ANS_ZAKi vs ANS")
+ANSZAKi_ANS_crossCorrelation
+save_final_plot(ANSZAKi_ANS_crossCorrelation, "./script_outputs/riboclub/JL318 ANS_ZAKi vs ANS cross correlation.svg")
+
+plot_crossCorrelation(plots_data$DDB_ZAKi, plots_data$DDB,".DDB_ZAKi",".DDB", "DDB_ZAKi vs DDB")
+
+
 plot_crossCorrelation(plots_data$EME_ZAKi, plots_data$EME,".EME_ZAKi",".EME")
 plot_crossCorrelation(plots_data$DDB_ZAKi, plots_data$EME,".DDB_ZAKi",".EME")
 
-ggsave(filename = "script_outputs/ANS_ZAKi_vs_EME_crossCorrelation.png", plot = plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME"), 
-       dpi = 400, height = 9, width = 12)
+
+# ------------------------------------------------------------------------------------------
 
 
 # ------------------------------------------------------------------------------------------
+# Saving plots for Riboclub
+# ------------------------------------------------------------------------------------------
+ANS_EME_crossCorrelation <- plot_crossCorrelation(plots_data$ANS, plots_data$EME,".ANS",".EME", "ANS vs EME")
+ANS_EME_crossCorrelation
+save_final_plot(ANS_EME_crossCorrelation, "./script_outputs/riboclub/JL318 ANS vs EME cross correlation.svg")
+
+plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS/UT",".DDB/UT", "ANS vs DDB")
+save_final_plot(plot_crossCorrelation(plots_data$ANS, plots_data$DDB,".ANS/UT",".DDB/UT", "ANS vs DDB"), "./script_outputs/riboclub/JL318 ANS vs DDB cross correlation.svg")
+
+ANSZAKi_ANS_crossCorrelation <- plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$ANS,".ANS_ZAKi",".ANS", "ANS_ZAKi vs ANS")
+ANSZAKi_ANS_crossCorrelation
+save_final_plot(ANSZAKi_ANS_crossCorrelation, "./script_outputs/riboclub/JL318 ANS_ZAKi vs ANS cross correlation.svg")
+
+ANSZAKi_EME_crossCorrelation <- plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME")
+ANSZAKi_EME_crossCorrelation
+save_final_plot(ANSZAKi_EME_crossCorrelation, "./script_outputs/riboclub/JL318 ANS_ZAKi vs EME cross correlation.svg")
+
+save_final_plot(plots$ANS, "./script_outputs/riboclub/JL318 ANS volcano.svg")
+save_final_plot(plots$ANS_ZAKi, "./script_outputs/riboclub/JL318 ANS_ZAKi volcano.svg")
+save_final_plot(plots$EME, "./script_outputs/riboclub/JL318 EME volcano.svg")
+save_final_plot(plots$EME_ZAKi, "./script_outputs/riboclub/JL318 EME_ZAKi volcano.svg")
 
 
 
@@ -296,6 +337,9 @@ all_ANS_ANS_ZAKi <- mutate(all_ANS_ANS_ZAKi, log2FoldChange_ANSminusZAKi = log2F
 top_ZAKdep_ANS <- filter(all_ANS_ANS_ZAKi, log2FoldChange_ANSminusZAKi > 1) %>% select(c("ensembl_gene_id_version","external_gene_name","log2FoldChange.ANS","log2FoldChange.ANS_ZAKi","log2FoldChange_ANSminusZAKi"))
 View(top_ZAKdep_ANS)
 
+completely_ZAKdep_ANS <- top_ZAKdep_ANS %>% filter(!log2FoldChange.ANS_ZAKi > 1)
+completely_ZAKdep_ANS
+
 
 # ------------------------------------------------------------
 # What is the contribution of ZAK in EME signaling?
@@ -304,12 +348,17 @@ all_EME_EME_ZAKi <- mutate(all_EME_EME_ZAKi, log2FoldChange_EMEminusZAKi = log2F
 top_ZAKdep_EME <- filter(all_EME_EME_ZAKi, log2FoldChange_EMEminusZAKi > 1) %>% select(c("ensembl_gene_id_version","external_gene_name","log2FoldChange.EME","log2FoldChange.EME_ZAKi","log2FoldChange_EMEminusZAKi"))
 View(top_ZAKdep_EME)
 
+top_ZAKdep_EME %>% filter(!log2FoldChange_EMEminusZAKi > 1) 
+
 # ------------------------------------------------------------
 # What is the contribution of ZAK in DDB signaling?
 all_DDB_DDB_ZAKi <- full_join(plots_data$DDB,plots_data$DDB_ZAKi, by=c("ensembl_gene_id_version","external_gene_name"),suffix=c(".DDB",".DDB_ZAKi"))
 all_DDB_DDB_ZAKi <- mutate(all_DDB_DDB_ZAKi, log2FoldChange_DDBminusZAKi = log2FoldChange.DDB - log2FoldChange.DDB_ZAKi)
 top_ZAKdep_DDB <- filter(all_DDB_DDB_ZAKi, log2FoldChange_DDBminusZAKi > 1) %>% select(c("ensembl_gene_id_version","external_gene_name","log2FoldChange.DDB","log2FoldChange.DDB_ZAKi","log2FoldChange_DDBminusZAKi"))
 View(top_ZAKdep_DDB)
+
+completely_ZAKdep_DDB <- top_ZAKdep_DDB %>% filter(!log2FoldChange.DDB_ZAKi > 1)
+
 
 RSR_genes <- inner_join(top_ZAKdep_ANS,top_ZAKdep_DDB, by=c("ensembl_gene_id_version","external_gene_name"))
 RSR_genes <- select(RSR_genes, c("ensembl_gene_id_version","external_gene_name"))
