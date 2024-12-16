@@ -5,8 +5,6 @@ library("ggrepel")
 library("biomaRt")
 library("conflicted")
 
-source("./08b_DESeq_customFunctions.R")
-
 
 # Prefer dplyr::select() over biomaRt::select()
 conflicted::conflicts_prefer(dplyr::select)
@@ -52,15 +50,15 @@ samples <- as.data.frame(samples)
 samples
 
 # Add ZAKi column to samples dataframe based on if sample was +ZAKi or not.
-samples$ZAKi <- NA
-samples$ZAKi <- ifelse(endsWith(samples$samples,".A"), "noZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".B"), "noZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".C"), "noZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".D"), "noZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".E"), "ZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".F"), "ZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".G"), "ZAKi", no=samples$ZAKi)
-samples$ZAKi <- ifelse(endsWith(samples$samples,".H"), "ZAKi", no=samples$ZAKi)
+samples$inhibitor <- NA
+samples$inhibitor <- ifelse(endsWith(samples$samples,".A"), "noZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".B"), "noZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".C"), "noZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".D"), "noZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".E"), "ZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".F"), "ZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".G"), "ZAKi", no=samples$inhibitor)
+samples$inhibitor <- ifelse(endsWith(samples$samples,".H"), "ZAKi", no=samples$inhibitor)
 
 # Add Replicate column to samples dataframe
 samples$Rep <- NA
@@ -85,10 +83,10 @@ samples
 
 # Reassign samples$drug_treatment variable as factor type in specific order
 samples$drug <- factor(samples$drug, levels = c("untreated","ANS","EME","DDB"))
-samples$ZAKi <- factor(samples$ZAKi, levels = c("noZAKi","ZAKi"))
+samples$inhibitor <- factor(samples$inhibitor, levels = c("noZAKi","ZAKi"))
 
 # Run DESeq2 using the featureCounts and samples dataframes we generated above, using the drug_treatment column listed in the samples dataframe
-dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + ZAKi + drug:ZAKi)
+dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + inhibitor + drug:inhibitor)
 dds <- DESeq(dds)
 
 # Removes rows with less than 100 reads, but only for 3 samples (the smallest group size - each condition has 3 replicates)
@@ -105,13 +103,13 @@ res <- results(dds)
 # Generate PCA plot of the DESeq results
 vsd <- vst(dds,blind=FALSE)
 
-plotPCA(vsd,intgroup=c("drug", "ZAKi"))
+plotPCA(vsd,intgroup=c("drug", "inhibitor"))
 
 # Return DESeq2 PCAplot data as a separate dataframe for custom ggplot
-PCAplot_data <- plotPCA(vsd,intgroup=c("drug_treatment"), returnData=TRUE)
+PCAplot_data <- plotPCA(vsd,intgroup=c("drug", "inhibitor"), returnData=TRUE)
+percentVar <- round(100 * attr(PCAplot_data, "percentVar"))
 
-# Plot PCA DESeq2 data using ggplot2.
-PCAplot <- ggplot(PCAplot_data, aes(x = PC1, y = PC2, color = group, shape = group)) +
+PCAplot <- ggplot(PCAplot_data, aes(x = PC1, y = PC2, color = drug, shape = inhibitor)) +
   geom_point(size = 4, stroke = 2) +
   theme_bw(base_family = "Avenir") +
   theme(legend.title = element_text(size = 20, face="bold"),
@@ -121,17 +119,16 @@ PCAplot <- ggplot(PCAplot_data, aes(x = PC1, y = PC2, color = group, shape = gro
         plot.title = element_text(size = 20, face = "bold"),
         panel.grid = element_line(color = "dark grey"),
         legend.key.spacing.y = unit(0.5, "lines")) + 
-  coord_fixed() + 
+  coord_fixed() +
   ggtitle("RNA-seq PCA") +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   scale_color_manual(name = "group", 
-                     labels = c("Untreated","Untreated+ZAKi", "ANS","ANS+ZAKi", "EME","EME+ZAKi", "DDB", "DDB+ZAKi"),
-                     values = c("#afafaf", "#afafaf", "#b100ff", "#b100ff", "#084152","#084152", "#62d5b4", "#62d5b4")) +
-  scale_shape_manual(name = "group", 
-                     labels = c("Untreated","Untreated+ZAKi", "ANS","ANS+ZAKi", "EME","EME+ZAKi", "DDB", "DDB+ZAKi"),
-                     values = c(19,1,19,1,19,1,19,1)) +
-  # Used % variances calculated by plotPCA(vsd, intgroup = c("drug_treatment"))
-  labs(x = "PC1: 67% variance",
-       y = "PC2: 17% variance")
+                     labels = c("Untreated","ANS", "EME", "DDB"),
+                     values = c("#afafaf", "#b100ff","#084152","#62d5b4")) +
+  scale_shape_manual(name = "inhibitor", 
+                     labels = c("no ZAKi","+ZAKi"),
+                     values = c(19,1)) 
 
 # View PCA Plot
 PCAplot
@@ -142,14 +139,240 @@ PCAplot
 # Once saved, I had to manually set the DPI and document size in Affinity. I also had to convert all the transparent rectangles and circles from black back to transparent, since Affinity SVG reader doesn't handle ggsave()'s very well.
   
 # ------------------------------------------------------------------------------------------
-# GENERATING VOLCANO PLOTS
+# FUNCTIONS
 # ---------------------------------------
-multi_variate <- plotCounts(dds, gene="ENSG00000177606.9", intgroup = c("drug","ZAKi"), returnData=TRUE)
-ANS <- results(dds, contrast = c("drug","ANS","untreated"))
-ANS <- as.data.frame(ANS)
-ANS
+add_gene_names <- function(deseq_results_dataframe) {
+  deseq_results_dataframe <- as.data.frame(deseq_results_dataframe)
+  ensembl_gene_id <- rownames(deseq_results_dataframe)
+  ensembl_gene_id <- str_extract(ensembl_gene_id, "ENSG\\d+")
+  rownames(deseq_results_dataframe) <- NULL
+  deseq_results_dataframe <- cbind(ensembl_gene_id,deseq_results_dataframe)
+  # Reformats dataframe to work well with downstream DESeq2 analyses and assigns gene names to correct rows
+  deseq_results_dataframe <- left_join(deseq_results_dataframe, bm.complete, by="ensembl_gene_id")
+  
+  return(deseq_results_dataframe)
+}
 
-# This is identical to my 08a_featureCounts_DESeq.R output, thankfully
-JUN_ANS <- ANS["ENSG00000177606.9",]
-TXNIP_ANS <- ANS["ENSG00000265972.6",]
+# Function that accepts a DESeq results dataframe with a given contrast (i.e. DESeq2::results(dds, contrast = c("drug_treatment","ANS","untreated")))
+# Outputs a dataframe ready to be used for ggplot2.
+generate_ggplot2_dataframe <- function(dds_results_dataframe) {
+  dds_results_dataframe <- add_gene_names(dds_results_dataframe)
+  
+  # Transforms input dataframe, adding up + down columns to mark if a given gene (row) has a Log2FoldChange >/< 1. 
+  dds_results_dataframe <- dds_results_dataframe %>% mutate(up = log2FoldChange > 1, down= log2FoldChange < -1)
+  
+  # Several genes have a p-value of zero, since they are NOT observed in the untreated condition. This leads to an infinite -log10(p-value), which breaks the ggplot2 labeling.
+  # The below code adds the absolute minimum non-zero value allowable by R to the padj column and creates a new padj_padded column.
+  dds_results_dataframe <- dplyr::mutate(dds_results_dataframe, padj_padded = padj + .Machine$double.xmin)
+  
+  # Removes baseMeans that are 0.0000 (which I have no idea why they exist)
+  dds_results_dataframe <- dplyr::filter(dds_results_dataframe, baseMean > 0)
+  
+  return(dds_results_dataframe)
+}
 
+# Function that accepts input dataframe generated by generate_ggplot2_dataframe and outputs a ggplot2 volcano plot.
+plot_DESeq2_volcano <- function(cleaned_dataframe, plot_title="untitled", xaxis=c(-6,12)) {
+  # Subsets "up" and "down" observations for plotting later.
+  up_rows <- cleaned_dataframe[cleaned_dataframe$up == TRUE,]
+  down_rows <- cleaned_dataframe[cleaned_dataframe$down == TRUE,]
+  
+  ggplot(cleaned_dataframe, aes(x=log2FoldChange,
+                                y=-log10(padj_padded))) +
+    geom_point(alpha=0.2, pch=16, color="grey50") +
+    geom_point(data=up_rows, color="#377EB8", alpha=0.2) +
+    geom_hline(yintercept=0, linetype="dashed", color = "black") +
+    geom_vline(xintercept=0, linetype="dashed", color = "black") +
+    geom_text_repel(data=up_rows, aes(label=external_gene_name), point.padding=0.25, max.overlaps=5, size = 5) +
+    geom_text_repel(data=down_rows, aes(label=external_gene_name), point.padding=0.25, max.overlaps=5, size = 5) +
+    coord_cartesian(xlim=xaxis)+
+    scale_x_continuous(name = expression(bold("log"[2]*"(fold change over UT)")), breaks = seq(-12,12,2)) +
+    ggtitle(plot_title) +
+    labs(subtitle = "Blue dots correspond to log2FoldChange > 1",
+         y = "-log10(padj)") +
+    theme_bw() +
+    theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20, face="bold"), plot.title = element_text(size = 24, face = "bold"),
+          plot.subtitle = element_text(size = 18))
+}
+
+# ANS_resultsnames <- c("drug_ANS_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugANS.inhibitorZAKi")
+wrapper_generate_results_dataframes <- function(deseq2_dds, resultsname_vector) {
+  plots_data <- list()
+  plots_data$drug_vs_untreated <- generate_ggplot2_dataframe(results(deseq2_dds, name = resultsname_vector[1]))
+  plots_data$drug_inhibitor_vs_untreated_inhibitor <- generate_ggplot2_dataframe(results(deseq2_dds, contrast = list(c(resultsname_vector[1], resultsname_vector[3]))))
+  plots_data$untreated_inhibitor_vs_untreated <- generate_ggplot2_dataframe(results(deseq2_dds, contrast = list(c(resultsname_vector[2]))))
+  plots_data$drug_inhibitor_vs_drug <- generate_ggplot2_dataframe(results(deseq2_dds, contrast = list(c(resultsname_vector[2], resultsname_vector[3]))))
+  plots_data$drug_inhibitor_interaction <- generate_ggplot2_dataframe(results(deseq2_dds, name = resultsname_vector[3]))
+  
+  return(plots_data)
+}
+
+plot_crossCorrelation <- function(treatmentA_df, treatmentB_df, labelA, labelB, plot_title="untitled") {
+  # Example of usage:
+  # ANS_UT <- wrapper_deseq2_results_to_ggplot2_dataframe(dds,"ANS","untreated")
+  # EME_UT <- wrapper_deseq2_results_to_ggplot2_dataframe(dds, "DDB","untreated")
+  # plot_crossCorrelation(ANS_UT, EME_UT, ".ANS",".DDB")
+  
+  # Generates combined dataframe of the two specified dataframes
+  combined_df <- inner_join(treatmentA_df, treatmentB_df, by=c("ensembl_gene_id","external_gene_name"), suffix=c(labelA, labelB))
+  
+  # Creates symbol of each dataframe's log2FoldChange label in the combined_df to pass into ggplot later
+  xaxis <- paste("log2FoldChange",labelA, sep="")
+  yaxis <- paste("log2FoldChange",labelB,sep="")
+  xaxis <- sym(xaxis)
+  yaxis <- sym(yaxis)
+  
+  upA_arg <- paste("up", labelA, sep = "")
+  upB_arg <- paste("up", labelB, sep = "")
+  upA_arg <- sym(upA_arg)
+  upB_arg <- sym(upB_arg)
+  
+  up_rows <- filter(combined_df, !!upA_arg == TRUE | !!upB_arg == TRUE)
+  
+  # Plots correlation plot using log2FoldChange symbols generated earlier
+  ggplot(combined_df, aes(x=!!xaxis,
+                          y=!!yaxis)) +
+    ylim(-12,12) +
+    xlim(-12,12) +
+    geom_point(alpha=0.2, pch=16, color="grey50") +
+    geom_point(data=up_rows, color="#377EB8", alpha=0.2) +
+    # geom_text_repel(data=up_rows, aes(label=external_gene_name), point.padding=0.25, max.overlaps=15, size = 5) +
+    geom_text_repel(data=up_rows, aes(label=external_gene_name), point.padding=0.25, max.overlaps=25, size = 5) +
+    geom_hline(yintercept=0, linetype="dashed", color = "black") +
+    geom_vline(xintercept=0, linetype="dashed", color = "black") +
+    geom_abline(intercept=0, slope=1, linetype="dashed") +
+    theme_bw() +
+    ggtitle(plot_title) +
+    labs(subtitle = "Blue dots correspond to log2FoldChange > 1") +
+    theme(axis.text.y = element_text(size = 18), 
+          axis.text.x = element_text(size = 18), 
+          axis.title = element_text(size = 20, face="bold"), 
+          plot.title = element_text(size = 24, face = "bold"),
+          plot.subtitle = element_text(size = 18)) +
+    xlab(bquote(bold("log"[2]~"("~.(labelA)~")"))) +
+    ylab(bquote(bold("log"[2]~"("~.(labelB)~")")))
+}
+
+# ------------------------------------------------------------------------------------------
+# SEE AFFINITY FILE IN JL318/scripts/ignore for experimental design explanation
+
+# EXAMPLE
+
+# What are the results names of the DESeq2 dataset?
+resultsNames(dds)
+
+# What are the effects of ANS under no ZAKi conditions?
+res1 <- results(dds, name = "drug_ANS_vs_untreated")
+res1 <- generate_ggplot2_dataframe(res1)
+plot_DESeq2_volcano(res1, "ANS treatment")
+
+# What are the effects of ANS under ZAKi conditions?
+# NOTE: results(dds, contrast = list(c("drug_ANS_vs_untreated", "drugANS.inhibitorZAKi"))) != results(dds, contrast = list("drug_ANS_vs_untreated", "drugANS.inhibitorZAKi"))!!
+res2 <- results(dds, contrast = list(c("drug_ANS_vs_untreated", "drugANS.inhibitorZAKi")))
+res2 <- generate_ggplot2_dataframe(res2)
+plot_DESeq2_volcano(res2, "ANS+ZAKi (ANS with ZAKi pre-treatment")
+
+# What are the effects of ZAKi under untreated conditions?
+# NOTE: results(dds, name = "inhibitor_ZAKi_vs_noZAKi") == results(dds, contrast = c("inhibitor","ZAKi","noZAKi"))
+res3 <- results(dds, contrast = list(c("inhibitor_ZAKi_vs_noZAKi")))
+res3 <- generate_ggplot2_dataframe(res3)
+plot_DESeq2_volcano(res3)
+
+# What are the effects of ZAKi under ANS conditions, including the effects of ZAKi basally?
+# This is (ANS+ZAKi)+(UT+ZAKi)
+res4 <- results(dds, contrast = list(c("inhibitor_ZAKi_vs_noZAKi", "drugANS.inhibitorZAKi")))
+res4 <- generate_ggplot2_dataframe(res4)
+plot_DESeq2_volcano(res4, "The effect of ZAKi on ANS-induced genes", xaxis = c(-8,5))
+
+# Do ANS-treated and untreated cells respond to ZAKi differently?
+# i.e. How much does ZAKi affect ANS treatment (ignoring its effects on UT cells)
+# This is equivalent to res4 - res3 or res2 - res1
+# This is the difference between the ZAKi effect in ANS-treated cells and the ZAKi effect in untreated cells (ANS+ZAKi/UT+ZAKi)
+res5 <- results(dds, name = "drugANS.inhibitorZAKi")
+res5 <- generate_ggplot2_dataframe(res5)
+plot_DESeq2_volcano(res5, "ANS+ZAKi/ANS", xaxis = c(-8,5))
+
+# ------------------------------------------------------------------------------------------
+# SEE AFFINITY FILE IN JL318/scripts/ignore for experimental design explanation
+
+ANS_resultsnames <- c("drug_ANS_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugANS.inhibitorZAKi")
+EME_resultsnames <- c("drug_EME_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugEME.inhibitorZAKi")
+DDB_resultsnames <- c("drug_DDB_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugDDB.inhibitorZAKi")
+
+ANS_results <- wrapper_generate_results_dataframes(dds, ANS_resultsnames)
+EME_results <- wrapper_generate_results_dataframes(dds, EME_resultsnames)
+DDB_results <- wrapper_generate_results_dataframes(dds, DDB_resultsnames)
+
+# This is equivalent to -ZAKi[ANS/UT]
+plot_DESeq2_volcano(ANS_results$drug_vs_untreated)
+plot_DESeq2_volcano(EME_results$drug_vs_untreated)
+plot_DESeq2_volcano(DDB_results$drug_vs_untreated)
+
+# This is equivalent to +ZAKi[ANS/UT]
+plot_DESeq2_volcano(ANS_results$drug_inhibitor_vs_untreated_inhibitor)
+plot_DESeq2_volcano(EME_results$drug_inhibitor_vs_untreated_inhibitor)
+plot_DESeq2_volcano(DDB_results$drug_inhibitor_vs_untreated_inhibitor)
+
+# This is equivalent to UT[+ZAKi/-ZAKi]
+plot_DESeq2_volcano(ANS_results$untreated_inhibitor_vs_untreated, plot_title = "UT+ZAKi / UT")
+plot_DESeq2_volcano(EME_results$untreated_inhibitor_vs_untreated)
+plot_DESeq2_volcano(DDB_results$untreated_inhibitor_vs_untreated)
+
+# This is equivalent to ANS[+ZAKi/-ZAKi]
+# This is the ZAKi effect in ANS-treated cells
+plot_DESeq2_volcano(ANS_results$drug_inhibitor_vs_drug, xaxis = c(-10,0))
+plot_DESeq2_volcano(EME_results$drug_inhibitor_vs_drug, xaxis = c(-2,2), plot_title = "EME+ZAKi / EME")
+plot_DESeq2_volcano(DDB_results$drug_inhibitor_vs_drug, xaxis = c(-10,0))
+
+# This is equivalent to ANS[+ZAKi/-ZAKi]/UT[+ZAKi/-ZAKi]
+# Do the ZAKi effect different in EME-treated cells compared to UT cells?
+# This ignores the contribution of ZAKi treatment in UT cells
+plot_DESeq2_volcano(ANS_results$drug_inhibitor_interaction, xaxis = c(-10,5))
+plot_DESeq2_volcano(EME_results$drug_inhibitor_interaction, xaxis = c(-2,2), plot_title = "[EME+ZAKi / EME)] / [UT+ZAKi / UT)]")
+plot_DESeq2_volcano(DDB_results$drug_inhibitor_interaction, xaxis = c(-10,5))
+
+
+
+plot_crossCorrelation(ANS_results$drug_vs_untreated, DDB_results$drug_vs_untreated, "ANS/UT","DDB/UT")
+plot_crossCorrelation(ANS_results$drug_vs_untreated, EME_results$drug_vs_untreated, "ANS/UT","EME/UT")
+plot_crossCorrelation(ANS_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"ANS/UT", "ANS+ZAKi / UT+ZAKi")
+plot_crossCorrelation(EME_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"EME/UT", "ANS+ZAKi / UT+ZAKi")
+
+# Identifying ZAK-dependent genes (ZAKi-responsive)
+ANS_ZAKi_dep_genes <- ANS_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < -1, padj_padded<0.05) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+EME_ZAKi_dep_genes <- EME_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < 0, padj_padded<0.05) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+DDB_ZAKi_dep_genes <- DDB_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < -1, padj_padded<0.05) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+
+common_ZAKi_genes <- inner_join(ANS_ZAKi_dep_genes, DDB_ZAKi_dep_genes, by=c("ensembl_gene_id", "external_gene_name"), suffix = c(".ANS",".DDB"))
+
+EDF1_dep_genes <- readRDS(file = "/Volumes/home/jli333/sinha2020_rnaseq/EDF1_dep_genes.rds")
+
+EDF1_genes <- EDF1_dep_genes %>% select(external_gene_name, log2FoldChange, padj_padded)
+DDB_ZAKi_genes <- DDB_ZAKi_dep_genes %>% select(external_gene_name, log2FoldChange, padj_padded)
+
+View(inner_join(EDF1_genes, DDB_ZAKi_genes, by="external_gene_name", suffix = c(".EDF1",".ZAKi")))
+anti_join(EDF1_genes, DDB_ZAKi_genes, by="external_gene_name")
+anti_join(DDB_ZAKi_genes, EDF1_genes, by="external_gene_name")
+# --------------------------------------------------
+res <- as.data.frame(results(dds, name = "drugDDB.ZAKiZAKi"))
+res <- as.data.frame(res)
+ensembl_gene_id <- rownames(res)
+ensembl_gene_id <- str_extract(ensembl_gene_id, "ENSG\\d+")
+rownames(res) <- NULL
+res <- cbind(ensembl_gene_id,res)
+# Reformats dataframe to work well with downstream DESeq2 analyses and assigns gene names to correct rows
+res <- left_join(res, bm.complete, by="ensembl_gene_id")
+
+
+resultsNames(dds)
+res <- as.data.frame(results(dds, contrast = list("drug_ANS_vs_untreated", "drug_EME_vs_untreated")))
+
+multivariate_res <- read_tsv("ANS-UT_vs_EME-UT_multivariate.tsv")
+singlevariate_res <- read_tsv("ANS-UT_vs_EME-UT_singlevariate.tsv")
+
+singlevariate_res <- singlevariate_res %>% arrange(ensembl_gene_id)
+multivariate_res <- multivariate_res %>% arrange(ensembl_gene_id)
+
+View(singlevariate_res %>% mutate(diffLog2FoldChange = log2FoldChange - multivariate_res$log2FoldChange,
+                                  diffpadj = padj - multivariate_res$padj) %>%
+       select(ensembl_gene_id, external_gene_name, diffLog2FoldChange, diffpadj))
