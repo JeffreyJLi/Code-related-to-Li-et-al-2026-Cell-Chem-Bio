@@ -4,6 +4,8 @@ library("dplyr")
 library("ggrepel")
 library("biomaRt")
 library("conflicted")
+library("gprofiler2")
+library("clusterProfiler")
 
 source("./08b_DESeq_customFunctions.R")
 
@@ -98,6 +100,7 @@ res <- results(dds)
 # Generate PCA plot of the DESeq results
 vsd <- vst(dds,blind=FALSE)
 
+
 # Return DESeq2 PCAplot data as a separate dataframe for custom ggplot
 PCAplot_data <- plotPCA(vsd,intgroup=c("drug_treatment"), returnData=TRUE)
 
@@ -136,7 +139,7 @@ PCAplot
 # GENERATING VOLCANO PLOTS
 # ---------------------------------------
 # Vector of our drug treatment conditions
-noZAKi_condition_list = c("ANS","EME","DDB")
+noZAKi_condition_list = c("untreated_ZAKi","ANS","EME","DDB")
 ZAKi_condition_list = c("ANS_ZAKi","EME_ZAKi","DDB_ZAKi")
 
 # Declares empty list variables for later.
@@ -174,9 +177,64 @@ plots$ANS_ZAKi
 plots$EME_ZAKi
 plots$DDB_ZAKi
 
+# Added plot for untreated_ZAKi/UT to see what genes are ZAKi-dependent under untreated conditions
+plots$untreated_ZAKi
+
 # Generate one big dataframe containing all differentially-expressed genes for all conditions
 full_DEseq_dataset <- bind_rows(plots_data)
 full_DEseq_dataset
+
+# Reassign ensembl_gene_id column to a trimmed version of the ensembl_gene_id_version column
+full_DEseq_dataset <- full_DEseq_dataset %>% mutate(ensembl_gene_id = str_match(full_DEseq_dataset$ensembl_gene_id_version, "(ENSG\\d+).\\d*")[,2])
+
+View(full_DEseq_dataset %>% filter(treatment_condition == "EME_ZAKi"))
+
+up_genes <- full_DEseq_dataset %>% filter(up == TRUE & treatment_condition == "DDB_ZAKi") %>% arrange(desc(log2FoldChange)) %>% select(ensembl_gene_id)
+
+
+
+gostres <- gost(query = up_genes$ensembl_gene_id, organism = "hsapiens", ordered_query = TRUE)
+
+View(gostres$result)
+
+
+## Testing Broad GSEA
+
+## Generate .txt file for GSEA software
+gsea_input <- full_DEseq_dataset %>%
+  pivot_wider(id_cols = c("external_gene_name", "ensembl_gene_id"), names_from = "treatment_condition", values_from = "log2FoldChange") %>%
+  dplyr::rename("Name" = "external_gene_name","Description" = "ensembl_gene_id") %>% 
+  drop_na(Name)
+
+# Generate pre-ranked_lists for 
+gsea_preranked_ANS <- gsea_input %>% select("Name", "ANS")
+gsea_preranked_ANSZAKi <- gsea_input %>% select("Name", "ANS_ZAKi")
+gsea_preranked_EME <- gsea_input %>% select("Name", "EME")
+gsea_preranked_EMEZAKi <- gsea_input %>% select("Name", "EME_ZAKi")
+
+write_tsv(x = gsea_preranked_ANS, file = "gsea_preranked_ANS.rnk")
+write_tsv(x = gsea_preranked_ANSZAKi, file = "gsea_preranked_ANSZAKi.rnk")
+write_tsv(x = gsea_preranked_EME, file = "gsea_preranked_EME.rnk")
+write_tsv(x = gsea_preranked_EMEZAKi, file = "gsea_preranked_EME_ZAKi.rnk")
+
+## Testing Broad GSEA with cutoff preranked list
+gsea_cutoff_input <- full_DEseq_dataset %>% 
+  filter(padj_padded < 0.05) %>% 
+  pivot_wider(id_cols = c("external_gene_name", "ensembl_gene_id"), names_from = "treatment_condition", values_from = "log2FoldChange") %>%
+  dplyr::rename("Name" = "external_gene_name","Description" = "ensembl_gene_id") %>% 
+  drop_na(Name)
+
+gsea_pval_preranked_ANS <- gsea_cutoff_input %>% select("Name","ANS")
+gsea_pval_preranked_ANSZAKi <- gsea_cutoff_input %>% select("Name","ANS_ZAKi")
+gsea_pval_preranked_EME <- gsea_cutoff_input %>% select("Name","EME")
+gsea_pval_preranked_EME_ZAKi <- gsea_cutoff_input %>% select("Name","EME")
+
+write_tsv(x = gsea_pval_preranked_ANS, file = "../09b_gsea_pvalcutoff/gsea_pval_preranked_ANS.rnk")
+write_tsv(x = gsea_pval_preranked_ANSZAKi, file = "../09b_gsea_pvalcutoff/gsea_pval_preranked_ANSZAKi.rnk")
+write_tsv(x = gsea_pval_preranked_EME, file = "../09b_gsea_pvalcutoff/gsea_pval_preranked_EME.rnk")
+
+
+
 # ------------------------------------------------------------------------------------------
 # GENERATING SUMMARY VIOLIN PLOT
 # ---------------------------------------
@@ -258,6 +316,10 @@ ANSZAKi_ANS_crossCorrelation <- plot_crossCorrelation(plots_data$ANS_ZAKi, plots
 ANSZAKi_ANS_crossCorrelation
 save_final_plot(ANSZAKi_ANS_crossCorrelation, "./script_outputs/riboclub/JL318 ANS_ZAKi vs ANS cross correlation.svg")
 
+ANSZAKi_ANS_crossCorrelation <- plot_crossCorrelation(plots_data$ANS, plots_data$ANS_ZAKi,".ANS",".ANS+ZAKi", "ANS vs ANS+ZAKi")
+ANSZAKi_ANS_crossCorrelation
+save_final_plot(ANSZAKi_ANS_crossCorrelation, "./script_outputs/riboclub/JL318 ANS vs ANS_ZAKi cross correlation.svg")
+
 ANSZAKi_EME_crossCorrelation <- plot_crossCorrelation(plots_data$ANS_ZAKi, plots_data$EME,".ANS_ZAKi",".EME", "ANS_ZAKi vs EME")
 ANSZAKi_EME_crossCorrelation
 save_final_plot(ANSZAKi_EME_crossCorrelation, "./script_outputs/riboclub/JL318 ANS_ZAKi vs EME cross correlation.svg")
@@ -316,7 +378,6 @@ wrapper_plotCounts_genename(dds, "RNASET2")
 wrapper_plotCounts_genename(dds, "SPAG5")
 
 wrapper_plotCounts_genename(dds, "N4BP2")
-
 
 
 
