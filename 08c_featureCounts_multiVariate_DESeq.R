@@ -4,6 +4,7 @@ library("dplyr")
 library("ggrepel")
 library("biomaRt")
 library("conflicted")
+library("ggvenn")
 
 
 # Prefer dplyr::select() over biomaRt::select()
@@ -12,17 +13,28 @@ conflicted::conflicts_prefer(dplyr::select)
 # Prefer dplyr::filter() over stats::filter()
 conflicted::conflicts_prefer(dplyr::filter)
 
-# Get dataframe of human-readable gene names to relabel rows (which use the ensembl gene ids) later
-get_ENS <- function(dset="hsapiens_gene_ensembl") {
-  mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset = dset)
-  attributes <- c("ensembl_gene_id","ensembl_gene_id_version", "external_gene_name",
-                  "chromosome_name", "start_position", "end_position")
-  bm <- getBM(attributes, mart = mart)
-  return(bm)
-}
 
-bm <- get_ENS()
-bm
+
+if (file.exists("bm_human_gene_names_ensembl.Rds")) {
+  print("bm_human_gene_names_ensembl.Rds file found. Loading .Rds object as 'bm'.")
+  bm <- readRDS("bm_human_gene_names_ensembl.Rds")
+} else {
+  print("bm_human_gene_names_ensembl.Rds file NOT found. Downloading ensembl gene names for human GRCh38.p14 genome using biomaRt")
+  # Function to get dataframe of human-readable gene names to relabel rows (which use the ensembl gene ids) later
+  get_ENS <- function(dset="hsapiens_gene_ensembl") {
+    mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset = dset)
+    attributes <- c("ensembl_gene_id","ensembl_gene_id_version", "external_gene_name",
+                    "chromosome_name", "start_position", "end_position")
+    bm <- getBM(attributes, mart = mart)
+    return(bm)
+  }
+  bm <- get_ENS()
+  
+  # I saved the bm list object containing all the ensembl gene names for the human genes (GRCh38.p14).
+  # This is because I had recent issues downloading the gene names using biomaRt (I suspect Ensembl had server issues)
+  print("Saving .Rds file of human ensembl gene names pulled by biomaRt")
+  saveRDS(bm, file = "bm_human_gene_names_ensembl.Rds")
+}
 
 # Drop any rows in bm dataframe with no external_gene_names
 bm.complete <-dplyr::filter(bm, ! external_gene_name == '')
@@ -97,6 +109,10 @@ dds <- dds[idx,]
 # Plots dispersion plot for diagnostics. Nicolle mentioned that the fit should be as flat as possible (it tends to tail up for <100 mean of normalized counts).
 # Removing rows with less than 100 reads will help.
 plotDispEsts(dds)
+plotMA(dds)
+plotMA(dds, ylim = c(-5,5))
+resLFC <- lfcShrink(dds, coef="drug_ANS_vs_untreated", type="apeglm")
+plotMA(resLFC)
 
 res <- results(dds)
 
@@ -252,11 +268,12 @@ plot_crossCorrelation <- function(treatmentA_df, treatmentB_df, labelA, labelB, 
     xlab(bquote(bold("log"[2]~"("~.(labelA)~")"))) +
     ylab(bquote(bold("log"[2]~"("~.(labelB)~")")))
 }
-
 # ------------------------------------------------------------------------------------------
+# EXAMPLE BREAKDOWN OF DESEQ2 EXPERIMENT OUTPUT
+# ------------------------------------------------------------------------------
 # SEE AFFINITY FILE IN JL318/scripts/ignore for experimental design explanation
 
-# EXAMPLE
+
 
 # What are the results names of the DESeq2 dataset?
 resultsNames(dds)
@@ -293,6 +310,8 @@ res5 <- generate_ggplot2_dataframe(res5)
 plot_DESeq2_volcano(res5, "ANS+ZAKi/ANS", xaxis = c(-8,5))
 
 # ------------------------------------------------------------------------------------------
+# Actual dataframe and ggplot output of DESeq2 
+# ------------------------------------------------------------------------------
 # SEE AFFINITY FILE IN JL318/scripts/ignore for experimental design explanation
 
 ANS_resultsnames <- c("drug_ANS_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugANS.inhibitorZAKi")
@@ -310,12 +329,12 @@ plot_DESeq2_volcano(DDB_results$drug_vs_untreated)
 
 # This is equivalent to +ZAKi[ANS/UT]
 plot_DESeq2_volcano(ANS_results$drug_inhibitor_vs_untreated_inhibitor)
-plot_DESeq2_volcano(EME_results$drug_inhibitor_vs_untreated_inhibitor)
+plot_DESeq2_volcano(EME_results$drug_inhibitor_vs_untreated_inhibitor, "+ZAKi[EME/UT]")
 plot_DESeq2_volcano(DDB_results$drug_inhibitor_vs_untreated_inhibitor)
 
 # This is equivalent to UT[+ZAKi/-ZAKi]
 plot_DESeq2_volcano(ANS_results$untreated_inhibitor_vs_untreated, plot_title = "UT+ZAKi / UT")
-plot_DESeq2_volcano(EME_results$untreated_inhibitor_vs_untreated)
+plot_DESeq2_volcano(EME_results$untreated_inhibitor_vs_untreated, plot_title = "UT[+ZAKi/-ZAKi]")
 plot_DESeq2_volcano(DDB_results$untreated_inhibitor_vs_untreated)
 
 # This is equivalent to ANS[+ZAKi/-ZAKi]
@@ -331,48 +350,133 @@ plot_DESeq2_volcano(ANS_results$drug_inhibitor_interaction, xaxis = c(-10,5))
 plot_DESeq2_volcano(EME_results$drug_inhibitor_interaction, xaxis = c(-2,2), plot_title = "[EME+ZAKi / EME)] / [UT+ZAKi / UT)]")
 plot_DESeq2_volcano(DDB_results$drug_inhibitor_interaction, xaxis = c(-10,5))
 
+# ------------------------------------------------------------------------------------------
+# Generating cross-correlation plots using the DESeq2 datasets for each condition
+# ------------------------------------------------------------------------------
 
-
+# Cross-correlations
 plot_crossCorrelation(ANS_results$drug_vs_untreated, DDB_results$drug_vs_untreated, "ANS/UT","DDB/UT")
 plot_crossCorrelation(ANS_results$drug_vs_untreated, EME_results$drug_vs_untreated, "ANS/UT","EME/UT")
 plot_crossCorrelation(ANS_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"ANS/UT", "ANS+ZAKi / UT+ZAKi")
 plot_crossCorrelation(EME_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"EME/UT", "ANS+ZAKi / UT+ZAKi")
 
-# Identifying ZAK-dependent genes (ZAKi-responsive)
-ANS_ZAKi_dep_genes <- ANS_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < -1, padj_padded<0.05) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
-EME_ZAKi_dep_genes <- EME_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < 0, padj_padded<0.05) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
-DDB_ZAKi_dep_genes <- DDB_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < -1, padj_padded<0.05) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+# ------------------------------------------------------------------------------------------
+# Identifying what genes are ZAK-dependent and EDF1-dependent
+# ------------------------------------------------------------------------------
 
+# Identifying ZAK-dependent genes (ZAKi-responsive)
+# I played with the Log2FC and padj cutoffs to get the best overlap between ZAK-dependent genes and EDF1-dependent genes
+ANS_ZAKi_dep_genes <- ANS_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < -2, padj_padded<1e-4) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+EME_ZAKi_dep_genes <- EME_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < 0, padj_padded<1e-4) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+DDB_ZAKi_dep_genes <- DDB_results$drug_inhibitor_vs_drug %>% filter(log2FoldChange < -2, padj_padded<1e-4) %>% select(ensembl_gene_id, external_gene_name, log2FoldChange, padj_padded)
+
+# Find which ZAK-dependent genes are present in BOTH ANS + DDB
+# This would be the most stringent
 common_ZAKi_genes <- inner_join(ANS_ZAKi_dep_genes, DDB_ZAKi_dep_genes, by=c("ensembl_gene_id", "external_gene_name"), suffix = c(".ANS",".DDB"))
 
+# Get EDF1-dependent genes (generated in a different RStudio project)
 EDF1_dep_genes <- readRDS(file = "/Volumes/home/jli333/sinha2020_rnaseq/EDF1_dep_genes.rds")
+EDF1_vs_WT_EL120 <- readRDS(file = "/Volumes/home/jli333/sinha2020_rnaseq/EDF1_vs_WT_EL120.rds")
 
+# cleaning up dataset for ease of viewing
 EDF1_genes <- EDF1_dep_genes %>% select(external_gene_name, log2FoldChange, padj_padded)
 DDB_ZAKi_genes <- DDB_ZAKi_dep_genes %>% select(external_gene_name, log2FoldChange, padj_padded)
 
+# What genes are both ZAK-dependent and EDF1-dependent
 View(inner_join(EDF1_genes, DDB_ZAKi_genes, by="external_gene_name", suffix = c(".EDF1",".ZAKi")))
-anti_join(EDF1_genes, DDB_ZAKi_genes, by="external_gene_name")
-anti_join(DDB_ZAKi_genes, EDF1_genes, by="external_gene_name")
-# --------------------------------------------------
-res <- as.data.frame(results(dds, name = "drugDDB.ZAKiZAKi"))
-res <- as.data.frame(res)
-ensembl_gene_id <- rownames(res)
-ensembl_gene_id <- str_extract(ensembl_gene_id, "ENSG\\d+")
-rownames(res) <- NULL
-res <- cbind(ensembl_gene_id,res)
-# Reformats dataframe to work well with downstream DESeq2 analyses and assigns gene names to correct rows
-res <- left_join(res, bm.complete, by="ensembl_gene_id")
+
+# Cross-correlation and Venn diagrams with EDF1-dependent and ZAK-dependent genes defined above
+
+EDF1_ZAK_dep_genes_join <- full_join(EDF1_genes, DDB_ZAKi_genes, by = "external_gene_name", suffix = c(".EDF1", ".ZAK"))
+EDF1_ZAK_dep_genes_join <- EDF1_ZAK_dep_genes_join %>% mutate(up_rows = ifelse(abs(log2FoldChange.EDF1) > 0 & abs(log2FoldChange.ZAK) >0, external_gene_name, NA))
+
+# Cross-correlation plot for plotting ZAK-dependent genes vs EDF1-dependent genes
+ggplot(EDF1_ZAK_dep_genes_join, aes(x=log2FoldChange.EDF1,
+                        y=log2FoldChange.ZAK)) +
+  ylim(-5,5) +
+  xlim(-5,5) +
+  geom_point(alpha=0.5, pch=16, color="red") +
+  # geom_text_repel(data=up_rows, aes(label=external_gene_name), point.padding=0.25, max.overlaps=15, size = 5) +
+  geom_text_repel(data=EDF1_ZAK_dep_genes_join, aes(label=up_rows), point.padding=0.25, max.overlaps=25, size = 5) +
+  geom_hline(yintercept=0, linetype="dashed", color = "black") +
+  geom_vline(xintercept=0, linetype="dashed", color = "black") +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  theme_bw() +
+  theme(axis.text.y = element_text(size = 18), 
+        axis.text.x = element_text(size = 18), 
+        axis.title = element_text(size = 20, face="bold"), 
+        plot.title = element_text(size = 24, face = "bold"),
+        plot.subtitle = element_text(size = 18))
+  #+ annotate("label",x = -4, y = 4, label = "EDF1-dependent genes = 65")
+
+# Generate Venn Diagram of ZAK-dependent genes vs EDF1-dependent genes
+ggvenn(list("EDF1 dep genes \n (Log2FC < 1, padj < 1e-4)" = EDF1_genes$external_gene_name,
+            "ZAK_dep \n (Log2FC < -2, padj < 1e-4) " = common_ZAKi_genes$external_gene_name), auto_scale =TRUE, show_percentage = FALSE, set_name_size = 4) + coord_cartesian(xlim = c(-2, 2), ylim = c(-1.5, 1.5))
 
 
-resultsNames(dds)
-res <- as.data.frame(results(dds, contrast = list("drug_ANS_vs_untreated", "drug_EME_vs_untreated")))
+# ------------------------------------------------------------------------------------------
+# Plotting the log2FC of the top ZAK-dependent genes for both the ANS/DDB dataset and Niladri's EDF1 dataset
+# ------------------------------------------------------------------------------
 
-multivariate_res <- read_tsv("ANS-UT_vs_EME-UT_multivariate.tsv")
-singlevariate_res <- read_tsv("ANS-UT_vs_EME-UT_singlevariate.tsv")
+# Selecting the top (lowest log2FC in ANS_results$drug_inhibitor_vs_drug dataset) ZAK-dependent genes
+ZAK_genes <- c("EGR1","DUSP1","FOSB","JUN","ATF3","IER2", "SOX4")
 
-singlevariate_res <- singlevariate_res %>% arrange(ensembl_gene_id)
-multivariate_res <- multivariate_res %>% arrange(ensembl_gene_id)
+ANS_ZAK_top <- ANS_results$drug_inhibitor_vs_drug %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "ANS+ZAKi / ANS") %>% mutate(external_gene_name = as.factor(external_gene_name))
+EDF1_ZAK_top <- EDF1_genes %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "∆EDF1/WT") %>% mutate(external_gene_name = as.factor(external_gene_name))
+DDB_ZAK_top <- DDB_results$drug_inhibitor_vs_drug %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "DDB+ZAKi / DDB") %>% mutate(external_gene_name = as.factor(external_gene_name))
+EME_ZAK_top <- EME_results$drug_inhibitor_vs_drug %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "EME+ZAKi / EME") %>% mutate(external_gene_name = as.factor(external_gene_name))
 
-View(singlevariate_res %>% mutate(diffLog2FoldChange = log2FoldChange - multivariate_res$log2FoldChange,
-                                  diffpadj = padj - multivariate_res$padj) %>%
-       select(ensembl_gene_id, external_gene_name, diffLog2FoldChange, diffpadj))
+
+ZAK_top_genes_only <- full_join(ANS_ZAK_top, EDF1_ZAK_top, by = c("external_gene_name", "log2FoldChange", "condition"), suffix = c(".ANS",".EDF1"))
+ZAK_top_genes_only <- full_join(ZAK_top_genes_only, DDB_ZAK_top, by = c("external_gene_name", "log2FoldChange", "condition"))
+ZAK_top_genes_only <- full_join(ZAK_top_genes_only, EME_ZAK_top, by = c("external_gene_name", "log2FoldChange", "condition"))
+
+ZAK_top_genes_only
+
+ggplot(ZAK_top_genes_only, aes(x = fct_reorder(external_gene_name, log2FoldChange), y = log2FoldChange, fill = condition)) +
+  geom_col(position = position_dodge(preserve = "single"), width = 0.6) +
+  theme_bw() +
+  theme(axis.text.y = element_text(size = 18), 
+        axis.text.x = element_text(size = 18), 
+        axis.title = element_text(size = 20, face="bold"), 
+        plot.title = element_text(size = 20, face = "bold"),
+        plot.subtitle = element_text(size = 18),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 16)) +
+  labs(x = "Gene name",
+       y = expression(bold("log"[2]*"FoldChange")),
+       fill = "Log2FC condition",
+       title = "Log2FC of top ZAK-dependent genes across +ZAKi and ∆EDF1 datasets"
+  )
+
+
+
+ANS_ZAK_top <- ANS_results$drug_inhibitor_interaction %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "ANS [+ZAKi / -ZAKi] / UT [+ZAKi / -ZAKi]") %>% mutate(external_gene_name = as.factor(external_gene_name))
+EDF1_ZAK_top <- EDF1_genes %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "∆EDF1/WT") %>% mutate(external_gene_name = as.factor(external_gene_name))
+DDB_ZAK_top <- DDB_results$drug_inhibitor_interaction %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "DDB [+ZAKi / -ZAKi] / UT [+ZAKi / -ZAKi]") %>% mutate(external_gene_name = as.factor(external_gene_name))
+EME_ZAK_top <- EME_results$drug_inhibitor_interaction %>% filter(external_gene_name %in% ZAK_genes) %>% select(external_gene_name,log2FoldChange) %>% mutate(condition = "EME [+ZAKi / -ZAKi] / UT [+ZAKi / -ZAKi]") %>% mutate(external_gene_name = as.factor(external_gene_name))
+
+ZAK_top_genes_only <- full_join(ANS_ZAK_top, EDF1_ZAK_top, by = c("external_gene_name", "log2FoldChange", "condition"), suffix = c(".ANS",".EDF1"))
+ZAK_top_genes_only <- full_join(ZAK_top_genes_only, DDB_ZAK_top, by = c("external_gene_name", "log2FoldChange", "condition"))
+ZAK_top_genes_only <- full_join(ZAK_top_genes_only, EME_ZAK_top, by = c("external_gene_name", "log2FoldChange", "condition"))
+
+ZAK_top_genes_only
+
+ggplot(ZAK_top_genes_only, aes(x = fct_reorder(external_gene_name, log2FoldChange), y = log2FoldChange, fill = condition)) +
+  geom_col(position = position_dodge(preserve = "single"), width = 0.6) +
+  theme_bw() +
+  theme(axis.text.y = element_text(size = 18), 
+        axis.text.x = element_text(size = 18), 
+        axis.title = element_text(size = 20, face="bold"), 
+        plot.title = element_text(size = 20, face = "bold"),
+        plot.subtitle = element_text(size = 18),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 16)) +
+  labs(x = "Gene name",
+       y = expression(bold("log"[2]*"FoldChange")),
+       fill = "Log2FC condition",
+       title = "Log2FC of top ZAK-dependent genes across +ZAKi and ∆EDF1 datasets"
+  )
+
+View(EDF1_ZAK_dep_genes_join %>% filter(is.na(log2FoldChange.EDF1) == FALSE & is.na(log2FoldChange.ZAK) == FALSE))
+
