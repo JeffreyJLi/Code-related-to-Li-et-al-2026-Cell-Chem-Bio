@@ -6,6 +6,7 @@ library("biomaRt")
 library("conflicted")
 library("ggvenn")
 library("here")
+library("plotly")
 
 
 # Prefer dplyr::select() over biomaRt::select()
@@ -269,10 +270,10 @@ plot_DESeq2_volcano_interactive <- function(cleaned_dataframe, plot_title="untit
   plot <- ggplot(cleaned_dataframe, aes(x=log2FoldChange,
                                 y=-log10(padj_padded),
                                 color=DE_gene,
-                                text=paste("Gene:",  external_gene_name,
-                                           "Log2FC:", round(log2FoldChange, 2),
-                                           "Padj:", format(padj_padded, scientific = TRUE, digits=2)))) +
-    geom_point(alpha=0.2, pch=16) +
+                                text=paste0("Gene: ",  external_gene_name, "\n",
+                                           "Log2FC: ", round(log2FoldChange, 2), "\n",
+                                           "Padj: ", format(padj_padded, scientific = TRUE, digits=2)))) +
+    geom_point(alpha=0.35, pch=16) +
     geom_hline(yintercept=0, linetype="dashed", color = "black") +
     geom_vline(xintercept=0, linetype="dashed", color = "black") +
     coord_cartesian(xlim=xaxis)+
@@ -289,9 +290,9 @@ plot_DESeq2_volcano_interactive <- function(cleaned_dataframe, plot_title="untit
   return(interactive_plot)
 }
 
-save_interactive_plot_as_html <- function(plotly_plot) {
+save_interactive_plot_as_html <- function(plotly_plot, output_dir="") {
   filename <- paste0(plotly_plot$x$layout$title$text, ".html")
-  htmlwidgets::saveWidget(as_widget(plotly_plot), here("interactive_volcanos", filename), selfcontained=TRUE)
+  htmlwidgets::saveWidget(as_widget(plotly_plot), here(output_dir, filename), selfcontained=TRUE)
 }
 
 # ANS_resultsnames <- c("drug_ANS_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugANS.inhibitorZAKi")
@@ -354,6 +355,61 @@ plot_crossCorrelation <- function(treatmentA_df, treatmentB_df, labelA, labelB, 
     scale_x_continuous(name = bquote(bold("log"[2]~"fold change("~.(labelA)~")")), limits = c(-2.5,10.5), breaks = seq(-2,10,2)) +
     scale_y_continuous(name = bquote(bold("log"[2]~"fold change("~.(labelB)~")")), limits = c(-2.5,10.5), breaks = seq(-2,10,2))
 }
+
+plot_crossCorrelation_interactive <- function(treatmentA_df, treatmentB_df, labelA, labelB, plot_title="untitled") {
+  # Example of usage:
+  # ANS_UT <- wrapper_deseq2_results_to_ggplot2_dataframe(dds,"ANS","untreated")
+  # EME_UT <- wrapper_deseq2_results_to_ggplot2_dataframe(dds, "DDB","untreated")
+  # plot_crossCorrelation(ANS_UT, EME_UT, ".ANS",".DDB")
+  
+  # Generates combined dataframe of the two specified dataframes
+  combined_df <- inner_join(treatmentA_df, treatmentB_df, by=c("ensembl_gene_id","external_gene_name"), suffix=c(labelA, labelB))
+  
+  # Creates symbol of each dataframe's log2FoldChange label in the combined_df to pass into ggplot later
+  xaxis <- paste("log2FoldChange",labelA, sep="")
+  yaxis <- paste("log2FoldChange",labelB,sep="")
+  xaxis <- sym(xaxis)
+  yaxis <- sym(yaxis)
+
+  upA_arg <- paste("up", labelA, sep = "")
+  upB_arg <- paste("up", labelB, sep = "")
+  upA_arg <- sym(upA_arg)
+  upB_arg <- sym(upB_arg)
+
+  combined_df <-  combined_df %>% mutate(de_gene = (!!upA_arg == TRUE | !!upB_arg == TRUE))
+
+  # Plots correlation plot using log2FoldChange symbols generated earlier
+  plot <- ggplot(combined_df, aes(x=!!xaxis,
+                          y=!!yaxis,
+                          color = de_gene,
+                          text = paste0("Gene: ",  external_gene_name, "\n",
+                                       paste0("Log2FC(", labelA, "): "), round(!!xaxis,2), "\n",
+                                       paste0("Log2FC(", labelB, "): "), round(!!yaxis,2)))) +
+    # ylim(-2.5,10) +
+    # xlim(-2.5,10) +
+    geom_point(alpha=0.35, pch=16) +
+    geom_hline(yintercept=0, linetype="dashed", color = "black") +
+    geom_vline(xintercept=0, linetype="dashed", color = "black") +
+    geom_abline(intercept=0, slope=1, linetype="dashed") +
+    scale_color_manual(values = c("grey50","red")) +
+    theme_bw() +
+    ggtitle(plot_title) +
+    # labs(subtitle = "Blue dots correspond to log2FoldChange > 1") +
+    theme(axis.text.y = element_text(size = 18),
+          axis.text.x = element_text(size = 18),
+          axis.title = element_text(size = 20, face="bold"),
+          plot.title = element_text(size = 24),
+          plot.subtitle = element_text(size = 18)) +
+    # xlab(bquote(bold("log"[2]~"FC("~.(labelA)~")"))) +
+    # ylab(bquote(bold("log"[2]~"FC("~.(labelB)~")"))) +
+    scale_x_continuous(name = paste0("log2FC(", labelA, ")"), limits = c(-2.5,10.5), breaks = seq(-2,10,2)) +
+    scale_y_continuous(name = paste0("log2FC(", labelB, ")"), limits = c(-2.5,10.5), breaks = seq(-2,10,2))
+  
+  # Convert to interactive plot
+  interactive_plot <- ggplotly(plot, tooltip = "text")
+  return(interactive_plot)
+}
+
 
 # ------------------------------ FUNCTIONS FOR RNA SALON TALK! ------------------------------
 # I removed the blue dot colouring for Log2FC > 1 for the talk!
@@ -533,14 +589,14 @@ plot_DESeq2_volcano(DDB_results$drug_inhibitor_interaction, xaxis = c(-10,5))
 # ------------------------------------------------------------------------------
 
 # This is equivalent to -ZAKi[ANS/UT]
-save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(ANS_results$drug_vs_untreated, plot_title = "ANS treatment"))
-save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(EME_results$drug_vs_untreated, plot_title = "EME treatment"))
-save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(DDB_results$drug_vs_untreated, plot_title = "DDB treatment"))
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(ANS_results$drug_vs_untreated, plot_title = "ANS treatment"), output_dir = "interactive_volcanos")
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(EME_results$drug_vs_untreated, plot_title = "EME treatment"), output_dir = "interactive_volcanos")
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(DDB_results$drug_vs_untreated, plot_title = "DDB treatment"), output_dir = "interactive_volcanos")
 
 # This is equivalent to +ZAKi[ANS/UT]
-save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(ANS_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "ANS+ZAKi treatment"))
-save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(EME_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "EME+ZAKi treatment"))
-save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(DDB_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "DDB+ZAKi treatment"))
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(ANS_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "ANS+ZAKi treatment"), output_dir = "interactive_volcanos")
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(EME_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "EME+ZAKi treatment"), output_dir = "interactive_volcanos")
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(DDB_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "DDB+ZAKi treatment"), output_dir = "interactive_volcanos")
 
 # ------------------------------------------------------------------------------------------
 # What # of genes are significantly up-regulated?
@@ -608,6 +664,22 @@ plot_crossCorrelation(EME_results$drug_vs_untreated, DDB_results$drug_inhibitor_
 plot_crossCorrelation(EME_results$drug_inhibitor_vs_untreated_inhibitor, ANS_results$drug_inhibitor_vs_untreated_inhibitor, "EME+ZAKi/UT", "ANS+ZAKi / UT+ZAKi", plot_title = "EME+ZAKi- vs ANS+ZAKi-treated samples")
 
 # Save using RStudio's export as .pdf file feature to JL318/FIGURES folder.
+
+# ------------------------------------------------------------------------------------------
+# Generating .html interactive cross-correlation plots
+# ------------------------------------------------------------------------------
+
+plot_crossCorrelation_interactive(ANS_results$drug_vs_untreated, DDB_results$drug_vs_untreated, "ANS/UT","DDB/UT", plot_title = "ANS vs DDB cross-correlation")
+plot_crossCorrelation_interactive(ANS_results$drug_vs_untreated, EME_results$drug_vs_untreated, "ANS/UT","EME/UT", plot_title = "ANS vs EME cross-correlation")
+plot_crossCorrelation_interactive(ANS_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"ANS/UT", "ANS+ZAKi / UT+ZAKi", plot_title = "ANS vs ANS+ZAKi cross-correlation")
+plot_crossCorrelation_interactive(EME_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"EME/UT", "ANS+ZAKi / UT+ZAKi", plot_title = "EME vs ANS+ZAKi cross-correlation")
+
+# Save as .html file
+save_interactive_plot_as_html(plot_crossCorrelation_interactive(ANS_results$drug_vs_untreated, DDB_results$drug_vs_untreated, "ANS/UT","DDB/UT", plot_title = "ANS vs DDB cross-correlation"), output_dir = "interactive_cross-correlations")
+save_interactive_plot_as_html(plot_crossCorrelation_interactive(ANS_results$drug_vs_untreated, EME_results$drug_vs_untreated, "ANS/UT","EME/UT", plot_title = "ANS vs EME cross-correlation"), output_dir = "interactive_cross-correlations")
+save_interactive_plot_as_html(plot_crossCorrelation_interactive(ANS_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"ANS/UT", "ANS+ZAKi / UT+ZAKi", plot_title = "ANS vs ANS+ZAKi cross-correlation"), output_dir = "interactive_cross-correlations")
+save_interactive_plot_as_html(plot_crossCorrelation_interactive(EME_results$drug_vs_untreated, ANS_results$drug_inhibitor_vs_untreated_inhibitor,"EME/UT", "ANS+ZAKi / UT+ZAKi", plot_title = "EME vs ANS+ZAKi cross-correlation"), output_dir = "interactive_cross-correlations")
+
 
 # ------------------------------------------------------------------------------------------
 # Identifying what genes are ZAK-dependent and EDF1-dependent
