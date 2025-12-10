@@ -5,6 +5,7 @@ library("ggrepel")
 library("biomaRt")
 library("conflicted")
 library("ggvenn")
+library("here")
 
 
 # Prefer dplyr::select() over biomaRt::select()
@@ -97,11 +98,8 @@ samples
 samples$drug <- factor(samples$drug, levels = c("untreated","ANS","EME","DDB"))
 samples$inhibitor <- factor(samples$inhibitor, levels = c("noZAKi","ZAKi"))
 
-# Old code as of 20250611
-# Run DESeq2 using the featureCounts and samples dataframes we generated above, using the drug_treatment column listed in the samples dataframe
-# dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + inhibitor + drug:inhibitor)
-# dds <- DESeq(dds)
-
+# Check if DESeq2 output .R file exists already. If so, it loads it in. If not, it runs DESeq2.
+# I wrote this to save time since DESeq2 takes ~30 sec-1 min to run otherwise.
 if (file.exists("20250611_JL318_raw_DESeq2_output.Rds")) {
   print("20250611_JL318_raw_DESeq2_output.Rds file found. Loading .Rds object as 'dds'.")
   dds <- readRDS("20250611_JL318_raw_DESeq2_output.Rds")
@@ -261,6 +259,39 @@ plot_DESeq2_volcano <- function(cleaned_dataframe, plot_title="untitled", xaxis=
     theme_bw() +
     theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20, face="bold"), plot.title = element_text(size = 24, face = "bold"),
           plot.subtitle = element_text(size = 18))
+}
+
+plot_DESeq2_volcano_interactive <- function(cleaned_dataframe, plot_title="untitled", xaxis=c(-5,11)) {
+  # Defines "differentially expressed" genes as those that undergo a log2FC of at least 1 either direction and also have a p-value < 0.05
+  cleaned_dataframe <- cleaned_dataframe %>% mutate(DE_gene = ((log2FoldChange > 1 | log2FoldChange < -1) & (padj_padded < 0.05)))
+  
+  # Generate ggplot volcano modified from the original plot_DESeq2_volcano function for better behavior with ggplotly
+  plot <- ggplot(cleaned_dataframe, aes(x=log2FoldChange,
+                                y=-log10(padj_padded),
+                                color=DE_gene,
+                                text=paste("Gene:",  external_gene_name,
+                                           "Log2FC:", round(log2FoldChange, 2),
+                                           "Padj:", format(padj_padded, scientific = TRUE, digits=2)))) +
+    geom_point(alpha=0.2, pch=16) +
+    geom_hline(yintercept=0, linetype="dashed", color = "black") +
+    geom_vline(xintercept=0, linetype="dashed", color = "black") +
+    coord_cartesian(xlim=xaxis)+
+    scale_x_continuous(name = "log2FC", breaks = seq(-12,12,2)) +
+    scale_color_manual(values = c("grey50","red")) +
+    ggtitle(plot_title) +
+    labs(y = "-log10(padj)") +
+    theme_bw() +
+    theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20, face="bold"), plot.title = element_text(size = 24),
+          plot.subtitle = element_text(size = 18))
+  
+  # Convert to interactive plot
+  interactive_plot <- ggplotly(plot, tooltip = "text")
+  return(interactive_plot)
+}
+
+save_interactive_plot_as_html <- function(plotly_plot) {
+  filename <- paste0(plotly_plot$x$layout$title$text, ".html")
+  htmlwidgets::saveWidget(as_widget(plotly_plot), here("interactive_volcanos", filename), selfcontained=TRUE)
 }
 
 # ANS_resultsnames <- c("drug_ANS_vs_untreated", "inhibitor_ZAKi_vs_noZAKi", "drugANS.inhibitorZAKi")
@@ -496,6 +527,20 @@ plot_DESeq2_volcano(DDB_results$drug_inhibitor_vs_drug, xaxis = c(-10,0))
 plot_DESeq2_volcano(ANS_results$drug_inhibitor_interaction, xaxis = c(-10,5))
 plot_DESeq2_volcano(EME_results$drug_inhibitor_interaction, xaxis = c(-2,2), plot_title = "[EME+ZAKi / EME)] / [UT+ZAKi / UT)]")
 plot_DESeq2_volcano(DDB_results$drug_inhibitor_interaction, xaxis = c(-10,5))
+
+# ------------------------------------------------------------------------------------------
+# Generating .html interactive volcano plots
+# ------------------------------------------------------------------------------
+
+# This is equivalent to -ZAKi[ANS/UT]
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(ANS_results$drug_vs_untreated, plot_title = "ANS treatment"))
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(EME_results$drug_vs_untreated, plot_title = "EME treatment"))
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(DDB_results$drug_vs_untreated, plot_title = "DDB treatment"))
+
+# This is equivalent to +ZAKi[ANS/UT]
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(ANS_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "ANS+ZAKi treatment"))
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(EME_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "EME+ZAKi treatment"))
+save_interactive_plot_as_html(plot_DESeq2_volcano_interactive(DDB_results$drug_inhibitor_vs_untreated_inhibitor, plot_title = "DDB+ZAKi treatment"))
 
 # ------------------------------------------------------------------------------------------
 # What # of genes are significantly up-regulated?
