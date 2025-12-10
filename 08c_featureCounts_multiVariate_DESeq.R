@@ -97,9 +97,25 @@ samples
 samples$drug <- factor(samples$drug, levels = c("untreated","ANS","EME","DDB"))
 samples$inhibitor <- factor(samples$inhibitor, levels = c("noZAKi","ZAKi"))
 
+# Old code as of 20250611
 # Run DESeq2 using the featureCounts and samples dataframes we generated above, using the drug_treatment column listed in the samples dataframe
-dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + inhibitor + drug:inhibitor)
-dds <- DESeq(dds)
+# dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + inhibitor + drug:inhibitor)
+# dds <- DESeq(dds)
+
+if (file.exists("20250611_JL318_raw_DESeq2_output.Rds")) {
+  print("20250611_JL318_raw_DESeq2_output.Rds file found. Loading .Rds object as 'dds'.")
+  dds <- readRDS("20250611_JL318_raw_DESeq2_output.Rds")
+} else {
+  print("20250611_JL318_raw_DESeq2_output.Rds file NOT found. Running DESeq2.")
+  # Function to get dataframe of human-readable gene names to relabel rows (which use the ensembl gene ids) later
+  dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + inhibitor + drug:inhibitor)
+  dds <- DESeq(dds)
+  
+  # I saved the bm list object containing all the ensembl gene names for the human genes (GRCh38.p14).
+  # This is because I had recent issues downloading the gene names using biomaRt (I suspect Ensembl had server issues)
+  print("Saving .Rds file of DESeq2 output data")
+  saveRDS(dds, file = "20250611_JL318_raw_DESeq2_output.Rds")
+}
 
 # Removes rows with less than 100 reads, but only for 3 samples (the smallest group size - each condition has 3 replicates)
 # I previously dropped rows with less than 100 reads in ALL 24 samples, which led to me losing major ZAK-responsive genes such as FOS and JUNB.
