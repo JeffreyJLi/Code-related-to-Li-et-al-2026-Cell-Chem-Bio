@@ -15,8 +15,6 @@ conflicted::conflicts_prefer(dplyr::select)
 # Prefer dplyr::filter() over stats::filter()
 conflicted::conflicts_prefer(dplyr::filter)
 
-
-
 if (file.exists("bm_human_gene_names_ensembl.Rds")) {
   print("bm_human_gene_names_ensembl.Rds file found. Loading .Rds object as 'bm'.")
   bm <- readRDS("bm_human_gene_names_ensembl.Rds")
@@ -831,4 +829,11 @@ write_tsv(DDB_genes, file = "script_outputs/DDB_genes_lfc1.tsv")
 
 # Ignore below - old code
 # ggvenn(list("ANS+ZAKi genes \n (Log2FC > 1)" = ANS_genes$external_gene_name,
-            "EME+ZAKi genes \n (Log2FC > 1)" = EME_genes$external_gene_name), auto_scale =TRUE, show_percentage = FALSE, set_name_size = 4) + coord_cartesian(xlim = c(-2, 2), ylim = c(-1.5, 1.5))
+#            "EME+ZAKi genes \n (Log2FC > 1)" = EME_genes$external_gene_name), auto_scale =TRUE, show_percentage = FALSE, set_name_size = 4) + coord_cartesian(xlim = c(-2, 2), ylim = c(-1.5, 1.5))
+
+# ------------------------------------------------------------------------------------------
+# Generate top 50 genes for Broad CLUE querying
+# ------------------------------------------------------------------------------
+
+write_tsv(EME_results$drug_inhibitor_vs_untreated_inhibitor %>% select(external_gene_name, log2FoldChange) %>% arrange(desc(log2FoldChange)) %>% filter(is.na(external_gene_name) != TRUE) %>% slice_max(100), "EME+ZAKi_top_100.tsv")
+write_tsv(EME_results$drug_inhibitor_vs_untreated_inhibitor %>% select(external_gene_name, log2FoldChange) %>% arrange(desc(log2FoldChange)) %>% filter(is.na(external_gene_name) != TRUE) %>% slice_min(order_by=log2FoldChange, n = 100), "EME+ZAKi_bottom_100.tsv")
