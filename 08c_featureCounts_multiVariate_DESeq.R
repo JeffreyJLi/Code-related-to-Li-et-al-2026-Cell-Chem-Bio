@@ -56,46 +56,35 @@ featureCounts <- dplyr::select(featureCounts, -c("Geneid"))
 colnames(featureCounts) <- sub('\\b...05_STAR_alignments.JL318.','',colnames(featureCounts))
 colnames(featureCounts) <- sub('_STARAligned.sortedByCoord.out.bam\\b','',colnames(featureCounts))
 
-# Create new dataframe of the conditions based on the ones in the count Matrix
+# Create new "samples" dataframe of the conditions based on the column names in the count Matrix
+# This will serve as the "coldata" argument for using the DESeqDataSetFromMatrix function
 samples <- colnames(featureCounts)
 samples <- as.data.frame(samples)
-samples
 
-# Add ZAKi column to samples dataframe based on if sample was +ZAKi or not.
-samples$inhibitor <- NA
-samples$inhibitor <- ifelse(endsWith(samples$samples,".A"), "noZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".B"), "noZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".C"), "noZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".D"), "noZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".E"), "ZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".F"), "ZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".G"), "ZAKi", no=samples$inhibitor)
-samples$inhibitor <- ifelse(endsWith(samples$samples,".H"), "ZAKi", no=samples$inhibitor)
+samples <- samples %>% 
+  # Add ZAKi column to samples dataframe based on if sample was +ZAKi or not.
+  mutate(inhibitor = case_when(grepl("\\.[A-D]$", samples) ~ "noZAKi", 
+                               grepl("\\.[E-H]$", samples) ~ "ZAKi")) %>%
+  # Add Replicate column to samples dataframe
+  mutate(Rep = case_when(grepl("^Rep1\\.", samples) ~ 1, 
+                         grepl("^Rep2\\.", samples) ~ 2, 
+                         grepl("^Rep3\\.", samples) ~ 3)) %>% 
+  # Add drug column to samples dataframe based on what drug was applied to each sample
+  mutate(drug = case_when(grepl("\\.[A,E]", samples) ~ "untreated", 
+                          grepl("\\.[B,F]", samples) ~ "ANS", 
+                          grepl("\\.[C,G]", samples) ~ "EME", 
+                          grepl("\\.[D,H]", samples) ~ "DDB"))
 
-# Add Replicate column to samples dataframe
-samples$Rep <- NA
-samples$Rep <-ifelse(startsWith(samples$samples, "Rep1."), 1, no=samples$Rep)
-samples$Rep <-ifelse(startsWith(samples$samples, "Rep2."), 2, no=samples$Rep)
-samples$Rep <-ifelse(startsWith(samples$samples, "Rep3."), 3, no=samples$Rep)
-samples
-
-# Add drug column to samples dataframe based on what drug was applied to each sample
-samples$drug <- NA
-samples$drug <- ifelse(endsWith(samples$samples,".A"), "untreated", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".B"), "ANS", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".C"), "EME", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".D"), "DDB", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".E"), "untreated", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".F"), "ANS", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".G"), "EME", no=samples$drug)
-samples$drug <- ifelse(endsWith(samples$samples,".H"), "DDB", no=samples$drug)
-
+# Assign rownames of samples as the samples column (i.e. the column names of the featureCounts matrix)
 rownames(samples) <- samples$samples
-samples
 
-# Reassign samples$drug_treatment variable as factor type in specific order
+# Reassign samples$drug_treatment variable (which are character type) as factor type in specific order
 samples$drug <- factor(samples$drug, levels = c("untreated","ANS","EME","DDB"))
 samples$inhibitor <- factor(samples$inhibitor, levels = c("noZAKi","ZAKi"))
+
+# Verifies if the rownames of the samples dataframe (i.e. the ColData input for DESeq2) are in the same order as the featureCounts columns.
+# Per the DESeq2 vignette, this is REQUIRED for proper DESeq2 function. Otherwise, things break!
+stopifnot(all(rownames(samples) == colnames(featureCounts)))
 
 # Check if DESeq2 output .R file exists already. If so, it loads it in. If not, it runs DESeq2.
 # I wrote this to save time since DESeq2 takes ~30 sec-1 min to run otherwise.
@@ -105,7 +94,7 @@ if (file.exists("20250611_JL318_raw_DESeq2_output.Rds")) {
 } else {
   print("20250611_JL318_raw_DESeq2_output.Rds file NOT found. Running DESeq2.")
   # Function to get dataframe of human-readable gene names to relabel rows (which use the ensembl gene ids) later
-  dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples,design=~drug + inhibitor + drug:inhibitor)
+  dds <- DESeqDataSetFromMatrix(countData = featureCounts, colData=samples, design=~drug + inhibitor + drug:inhibitor)
   dds <- DESeq(dds)
   
   # I saved the bm list object containing all the ensembl gene names for the human genes (GRCh38.p14).
