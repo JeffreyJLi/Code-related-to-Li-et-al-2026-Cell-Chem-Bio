@@ -2,13 +2,13 @@
 
 The code in this repo was used to analyze the bulk RNA-seq experiment described in Li et al. (2026).
 
-### Overall experiment design + how it relates to DESeq2
+## Overall experiment design + how it relates to DESeq2
 
 HEK293T cells were pre-treated with either DMSO or ZAKi (this will be referred to as "**inhibitor**" in our DEseq2 design formula) for 1 h before treating with ANS, EME, or DDB ("**drug**" in our DESeq2 design formula). 
 
 Thus, our DESeq2 design formula will be "**~drug + inhibitor + drug:inhibitor**".
 
-### Project directory structure
+## Project directory structure
 
 This RNA-seq project is organized in the following way:
 ```
@@ -36,7 +36,10 @@ This RNA-seq project is organized in the following way:
     Contains a single .txt file of the # of reads per gene across ALL .bam files (all conditions), as calculated by featureCounts package. This is used in DESeq2.
 ```
 
-### Repo contents
+## Pipeline used:
+
+Scripts not listed here were not used in the final pipeline.
+
 - **01_checkmd5.sh**: This is a basic script to cross-check the md5sum .md5 files provided by Genewiz with their associated actual .fastq.gz files. This ensures that the data was downloaded correctly from Genewiz. 
 
 - **02_fastqc.sh**: This runs fastqc on each .fastq.gz file from Genewiz.
