@@ -826,3 +826,9 @@ write_tsv(DDB_genes, file = "script_outputs/DDB_genes_lfc1.tsv")
 
 write_tsv(EME_results$drug_inhibitor_vs_untreated_inhibitor %>% select(external_gene_name, log2FoldChange) %>% arrange(desc(log2FoldChange)) %>% filter(is.na(external_gene_name) != TRUE) %>% slice_max(100), "EME+ZAKi_top_100.tsv")
 write_tsv(EME_results$drug_inhibitor_vs_untreated_inhibitor %>% select(external_gene_name, log2FoldChange) %>% arrange(desc(log2FoldChange)) %>% filter(is.na(external_gene_name) != TRUE) %>% slice_min(order_by=log2FoldChange, n = 100), "EME+ZAKi_bottom_100.tsv")
+
+# ------------------------------------------------------------------------------------------
+# Generating Broad GSEA input dataframe for Kate's code
+
+write_tsv(ANS_results$drug_vs_untreated %>% 
+  select(ensembl_gene_id, log2FoldChange, pvalue, external_gene_name) %>% mutate(pvalue = pvalue + .Machine$double.xmin), "20251211_ANS-condition_GSEA_input.tsv")
