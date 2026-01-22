@@ -3,6 +3,7 @@
 
 source("08a_load_biomaRt_ENS.R")
 bm.complete <- load_biomaRt_ENS("bm_human_gene_names_ensembl")
+bm.complete <- bm.complete %>% select(ensembl_gene_id, ensembl_gene_id_version, external_gene_name)
 
 # ------------------------------------------------------------------------------------------
 # FUNCTIONS
