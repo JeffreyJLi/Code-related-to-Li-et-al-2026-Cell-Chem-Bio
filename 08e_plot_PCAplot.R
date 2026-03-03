@@ -15,7 +15,7 @@ plot_PCAplot <- function(PCAplot_data, percentVariance) {
     ylab(paste0("PC2: ",percentVariance[2],"% variance")) +
     scale_color_manual(name = "group", 
                        labels = c("Untreated","ANS", "EME", "DDB"),
-                       values = c("#afafaf", "#b100ff","#084152","#62d5b4")) +
+                       values = c("#afafaf", "#FE2E78","#008E91","#B100FF")) +
     scale_shape_manual(name = "inhibitor", 
                        labels = c("no ZAKi","+ZAKi"),
                        values = c(19,1))
