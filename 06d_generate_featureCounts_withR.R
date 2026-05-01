@@ -1,5 +1,5 @@
 library(Rsubread)
-
+library(tidyverse)
 sample_file_list <- grep('.sortedByCoord.out.bam$',list.files("../05_STAR_alignments"),value=TRUE)
 sample_file_list <- paste("../05_STAR_alignments/",sample_file_list, sep="")
 sample_file_list
@@ -12,3 +12,4 @@ saveRDS(featureCounts, "featureCounts_R.rds")
 
 featureCounts <- readRDS("06d_featureCounts_R.rds")
 featureCounts$count
+

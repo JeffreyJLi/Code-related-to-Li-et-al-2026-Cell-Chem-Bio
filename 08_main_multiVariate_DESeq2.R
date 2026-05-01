@@ -64,6 +64,8 @@ percentVar <- round(100 * attr(PCAplot_data, "percentVar"))
 
 plot_PCAplot(PCAplot_data, percentVar)
 
+ggsave("script_outputs/20260303_JL318_PCA_plot.svg", plot = plot_PCAplot(PCAplot_data, percentVar), width = 7, height = 5, unit = "in")
+
 
 ####  Plot DESeq2 data --------------------------------------------------------
 
