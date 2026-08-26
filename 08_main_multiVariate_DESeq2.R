@@ -351,3 +351,34 @@ write_tsv(EME_results$drug_inhibitor_vs_untreated_inhibitor %>% select(external_
 
 write_tsv(ANS_results$drug_vs_untreated %>% 
             select(ensembl_gene_id, log2FoldChange, pvalue, external_gene_name) %>% mutate(pvalue = pvalue + .Machine$double.xmin), "20251211_ANS-condition_GSEA_input.tsv")
+
+#### Generate ZAK-independent genes in ANS+ZAKi vs EME+ZAKi vs DDB+ZAKi for transcription factor analysis ---------
+
+ANS_genes <- ANS_results$drug_vs_untreated %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
+EME_genes <- EME_results$drug_vs_untreated %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
+DDB_genes <- DDB_results$drug_vs_untreated %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
+
+write_tsv(ANS_genes, file = "script_outputs/TFenrichment/ANS_genes_lfc1.tsv")
+write_tsv(EME_genes, file = "script_outputs/TFenrichment/EME_genes_lfc1.tsv")
+write_tsv(DDB_genes, file = "script_outputs/TFenrichment/DDB_genes_lfc1.tsv")
+
+ANSZAKi_genes <- ANS_results$drug_inhibitor_vs_untreated_inhibitor %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
+EMEZAKi_genes <- EME_results$drug_inhibitor_vs_untreated_inhibitor %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
+DDBZAKi_genes <- DDB_results$drug_inhibitor_vs_untreated_inhibitor %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
+
+write_tsv(ANSZAKi_genes, file = "script_outputs/TFenrichment/ANS+ZAKi_genes_lfc1.tsv")
+write_tsv(EMEZAKi_genes, file = "script_outputs/TFenrichment/EME+ZAKi_genes_lfc1.tsv")
+write_tsv(DDBZAKi_genes, file = "script_outputs/TFenrichment/DDB+ZAKi_genes_lfc1.tsv")
+
+#### determine what is "ZAK-independent" by taking the DEGs and calculating the difference between noZAKi + _ZAKi first
+
+ANS_genes <- ANS_genes %>% select(external_gene_name, log2FoldChange) %>% drop_na(external_gene_name)
+ANSZAKi_genes <- ANSZAKi_genes %>% select(external_gene_name, log2FoldChange)%>% drop_na(external_gene_name)
+
+combined <- full_join(ANS_genes, ANSZAKi_genes, by = "external_gene_name", suffix = c("_noZAKi", "_ZAKi")) %>% replace_na(list(log2FoldChange_noZAKi = 0, log2FoldChange_ZAKi = 0)) %>% mutate(difference = log2FoldChange_noZAKi - log2FoldChange_ZAKi)
+
+combined_ZAK_indep <- combined %>% filter(difference < 1)
+write_tsv(combined_ZAK_indep, file = "script_outputs/TFenrichment/ANS_ZAK_indep_genes.tsv")
+
+combined_ZAK_dep <- combined %>% filter(difference >= 1)
+write_tsv(combined_ZAK_dep, file = "script_outputs/TFenrichment/ANS_ZAK_dep_genes.tsv")
