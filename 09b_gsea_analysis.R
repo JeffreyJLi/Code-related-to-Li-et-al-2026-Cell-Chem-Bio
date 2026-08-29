@@ -7,8 +7,8 @@ library("msigdbr")
 
 # Define default themes for plotting
 theme_greenlab <- function() {
-  theme(axis.text = element_text(size = 14), axis.title = element_text(size = 20, face="bold"), plot.title = element_text(size = 24, face = "bold"),
-        plot.subtitle = element_text(size = 18), legend.title = element_text(size = 14, face = "bold"), legend.text = element_text(size = 14), legend.key.spacing.y = unit(1, "mm"))
+  theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20, face="bold"), plot.title = element_text(size = 24, face = "bold"),
+        plot.subtitle = element_text(size = 18), legend.title = element_text(size = 18, face = "bold"), legend.text = element_text(size = 18), legend.key.spacing.y = unit(1, "mm"))
 }
 greenlab_colorpalette <- c("#ff0c68", "#008E91","#981cd7")
 
@@ -84,7 +84,7 @@ save_plot <- function(plot, filename){
 #### 
 Add the ANS+EME and -/+ ZAKi GSEA plots and write short paragraph citing the supplemental. EME shuts off metabolism; ANS hits UV
 ADD top 10 CHEA3 analysis to rebuttal. Lots of the same transcription factors. GSEA is more helpful to think about these pathways.
-ggsave(here("script_outputs/reviewer_analysis/gsea/plots/ANS-ANS+ZAKi_GSEA.pdf"), plot = plot_ANS_ANSZAKi_combinedNES, width = 5, height = 8)
+
 
 # Plot ANS vs ANSZAKi
 ANS_ANSZAKi_combinedNES <- bind_rows(ANS_hallmark_NES, ANSZAKi_hallmark_NES)
@@ -92,16 +92,19 @@ ANS_ANSZAKi_combinedNES <- bind_rows(ANS_hallmark_NES, ANSZAKi_hallmark_NES)
 plot_ANS_ANSZAKi_combinedNES <- ggplot(reorder_df_for_plotting(ANS_ANSZAKi_combinedNES), aes(x = NES, y = ID, color = drug, fill = drug, size = -log10(p.adjust))) +
   geom_point(shape = 21, stroke = 1)+
   labs(x = "Normalized Enrichment Score (NES)", y = "GSEA Hallmark Gene Set", 
-       title = "GSEA: ANS and ANS+ZAKi") +
+       title = "GSEA: ANS and ANS+ZAKi",
+       color = "Condition",
+       fill = "Condition") +
   geom_vline(xintercept = 0, color = "black", linewidth = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("ANS" = greenlab_colorpalette[1], "ANSZAKi" = greenlab_colorpalette[1]),
                      labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi"))+
   scale_fill_manual(
     values = c("ANS" = greenlab_colorpalette[1], "ANSZAKi" = NA),
-    labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi")) +
+    labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi"),) +
   theme_greenlab() +
-  scale_size(range = c(3, 8))
+  scale_size(range = c(3, 8)) +
+  guides(color = guide_legend(override.aes = list(size = 5)))
 
 plot_ANS_ANSZAKi_combinedNES
 save_plot(plot_ANS_ANSZAKi_combinedNES, "ANSvsANS+ZAKi_GSEA.pdf")
@@ -112,7 +115,9 @@ EME_EMEZAKi_combinedNES <- bind_rows(EME_hallmark_NES, EMEZAKi_hallmark_NES)
 plot_EME_EMEZAKi_combinedNES <- ggplot(reorder_df_for_plotting(EME_EMEZAKi_combinedNES), aes(x = NES, y = ID, color = drug, fill = drug, size = -log10(p.adjust))) +
   geom_point(shape = 21, stroke = 1)+
   labs(x = "Normalized Enrichment Score (NES)", y = "GSEA Hallmark Gene Set", 
-       title = "GSEA: EME and EME+ZAKi") +
+       title = "GSEA: EME and EME+ZAKi",
+       color = "Condition",
+       fill = "Condition") +
   geom_vline(xintercept = 0, color = "black", linewidth = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("EME" = greenlab_colorpalette[2], "EMEZAKi" = greenlab_colorpalette[2]),
@@ -121,7 +126,8 @@ plot_EME_EMEZAKi_combinedNES <- ggplot(reorder_df_for_plotting(EME_EMEZAKi_combi
     values = c("EME" = greenlab_colorpalette[2], "EMEZAKi" = NA),
     labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi")) +
   theme_greenlab() +
-  scale_size(range = c(3, 8))
+  scale_size(range = c(3, 8)) +
+  guides(color = guide_legend(override.aes = list(size = 5)))
 plot_EME_EMEZAKi_combinedNES
 save_plot(plot_EME_EMEZAKi_combinedNES, "EMEvsEME+ZAKi_GSEA.pdf")
 
@@ -132,7 +138,9 @@ DDB_DDBZAKi_combinedNES <- bind_rows(DDB_hallmark_NES, DDBZAKi_hallmark_NES)
 plot_DDB_DDBZAKi_combinedNES <- ggplot(reorder_df_for_plotting(DDB_DDBZAKi_combinedNES), aes(x = NES, y = ID, color = drug, fill = drug, size = -log10(p.adjust))) +
   geom_point(shape = 21, stroke = 1)+
   labs(x = "Normalized Enrichment Score (NES)", y = "GSEA Hallmark Gene Set", 
-       title = "GSEA: DDB and DDB+ZAKi") +
+       title = "GSEA: DDB and DDB+ZAKi",
+       color = "Condition",
+       fill = "Condition") +
   geom_vline(xintercept = 0, color = "black", linewidth = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("DDB" = greenlab_colorpalette[3], "DDBZAKi" = greenlab_colorpalette[3]),
@@ -141,7 +149,12 @@ plot_DDB_DDBZAKi_combinedNES <- ggplot(reorder_df_for_plotting(DDB_DDBZAKi_combi
     values = c("DDB" = greenlab_colorpalette[3], "DDBZAKi" = NA),
     labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi")) +
   theme_greenlab() +
-  scale_size(range = c(3, 8))
+  scale_size(range = c(3, 8)) +
+  guides(
+    color = guide_legend(order = 1, override.aes = list(size = 5)),
+    fill = guide_legend(order = 1),
+    size = guide_legend(order = 2)
+  )
 plot_DDB_DDBZAKi_combinedNES
 save_plot(plot_DDB_DDBZAKi_combinedNES, "DDBvsDDB+ZAKi_GSEA.pdf")
 
@@ -152,7 +165,9 @@ alldrug_combinedNES <- alldrug_combinedNES %>%  mutate(drug = factor(drug, level
 plot_alldrug_combinedNES <- ggplot(reorder_df_for_plotting(alldrug_combinedNES), aes(x = NES, y = ID, color = drug, fill = drug, size = -log10(p.adjust))) +
   geom_point(shape = 21, stroke = 1, alpha = 0.5)+
   labs(x = "Normalized Enrichment Score (NES)", y = "GSEA Hallmark Gene Set", 
-       title = "GSEA: ANS/EME/DDB -ZAKi") +
+       title = "GSEA: ANS/EME/DDB -ZAKi",
+       color = "Condition",
+       fill = "Condition") +
   geom_vline(xintercept = 0, color = "black", linewidth = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("ANS" = greenlab_colorpalette[1], "EME" = greenlab_colorpalette[2], "DDB" = greenlab_colorpalette[3]),
@@ -161,7 +176,8 @@ plot_alldrug_combinedNES <- ggplot(reorder_df_for_plotting(alldrug_combinedNES),
     values = c("ANS" = greenlab_colorpalette[1], "EME" = greenlab_colorpalette[2],"DDB" = greenlab_colorpalette[3]),
     labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi")) +
   theme_greenlab() +
-  scale_size(range = c(3, 8))
+  scale_size(range = c(3, 8)) +
+  guides(color = guide_legend(override.aes = list(size = 5)))
 plot_alldrug_combinedNES
 save_plot(plot_alldrug_combinedNES, "alldrug-ZAKi_GSEA.pdf")
 
@@ -172,7 +188,9 @@ alldrugZAKi_combinedNES <- alldrugZAKi_combinedNES %>%  mutate(drug = factor(dru
 plot_alldrugZAKi_combinedNES <- ggplot(reorder_df_for_plotting(alldrugZAKi_combinedNES), aes(x = NES, y = ID, color = drug, fill = drug, size = -log10(p.adjust))) +
   geom_point(shape = 21, stroke = 1, alpha = 0.5)+
   labs(x = "Normalized Enrichment Score (NES)", y = "GSEA Hallmark Gene Set", 
-       title = "GSEA: ANS/EME/DDB +ZAKi") +
+       title = "GSEA: ANS/EME/DDB +ZAKi",
+       color = "Condition",
+       fill = "Condition") +
   geom_vline(xintercept = 0, color = "black", linewidth = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("ANSZAKi" = greenlab_colorpalette[1], "EMEZAKi" = greenlab_colorpalette[2], "DDBZAKi" = greenlab_colorpalette[3]),
@@ -181,7 +199,8 @@ plot_alldrugZAKi_combinedNES <- ggplot(reorder_df_for_plotting(alldrugZAKi_combi
     values = c("ANSZAKi" = greenlab_colorpalette[1], "EMEZAKi" = greenlab_colorpalette[2],"DDBZAKi" = greenlab_colorpalette[3]),
     labels = c("ANSZAKi" = "ANS+ZAKi", "EMEZAKi" = "EME+ZAKi", "DDBZAKi" = "DDB+ZAKi")) +
   theme_greenlab() +
-  scale_size(range = c(3, 8))
+  scale_size(range = c(3, 8)) +
+  guides(color = guide_legend(override.aes = list(size = 5)))
 plot_alldrugZAKi_combinedNES
 save_plot(plot_alldrugZAKi_combinedNES, "alldrug+ZAKi_GSEA.pdf")
 
