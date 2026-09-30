@@ -81,11 +81,6 @@ save_plot <- function(plot, filename){
   }
 }
 
-#### 
-Add the ANS+EME and -/+ ZAKi GSEA plots and write short paragraph citing the supplemental. EME shuts off metabolism; ANS hits UV
-ADD top 10 CHEA3 analysis to rebuttal. Lots of the same transcription factors. GSEA is more helpful to think about these pathways.
-
-
 # Plot ANS vs ANSZAKi
 ANS_ANSZAKi_combinedNES <- bind_rows(ANS_hallmark_NES, ANSZAKi_hallmark_NES)
 

@@ -8,7 +8,6 @@ library("ggvenn")
 library("here")
 library("plotly")
 
-
 # Prefer dplyr::select() over biomaRt::select()
 conflicted::conflicts_prefer(dplyr::select)
 
@@ -64,7 +63,7 @@ percentVar <- round(100 * attr(PCAplot_data, "percentVar"))
 
 plot_PCAplot(PCAplot_data, percentVar)
 
-ggsave("script_outputs/20260303_JL318_PCA_plot.svg", plot = plot_PCAplot(PCAplot_data, percentVar), width = 7, height = 5, unit = "in")
+# ggsave("script_outputs/20260303_JL318_PCA_plot.svg", plot = plot_PCAplot(PCAplot_data, percentVar), width = 7, height = 5, unit = "in")
 
 
 ####  Plot DESeq2 data --------------------------------------------------------
@@ -352,7 +351,7 @@ write_tsv(EME_results$drug_inhibitor_vs_untreated_inhibitor %>% select(external_
 write_tsv(ANS_results$drug_vs_untreated %>% 
             select(ensembl_gene_id, log2FoldChange, pvalue, external_gene_name) %>% mutate(pvalue = pvalue + .Machine$double.xmin), "20251211_ANS-condition_GSEA_input.tsv")
 
-#### Generate ZAK-independent genes in ANS+ZAKi vs EME+ZAKi vs DDB+ZAKi for transcription factor analysis ---------
+#### Generate ZAK-independent genes in ANS+ZAKi vs EME+ZAKi vs DDB+ZAKi for transcription factor analysis for reviewers ---------
 
 ANS_genes <- ANS_results$drug_vs_untreated %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
 EME_genes <- EME_results$drug_vs_untreated %>% filter((padj < 0.01) & (log2FoldChange > 1)) %>% arrange(desc(stat))
@@ -382,3 +381,4 @@ write_tsv(combined_ZAK_indep, file = "script_outputs/TFenrichment/ANS_ZAK_indep_
 
 combined_ZAK_dep <- combined %>% filter(difference >= 1)
 write_tsv(combined_ZAK_dep, file = "script_outputs/TFenrichment/ANS_ZAK_dep_genes.tsv")
+
